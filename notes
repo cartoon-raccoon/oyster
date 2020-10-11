@@ -1,0 +1,25 @@
+Oyster - A shell written in Rust
+
+Fully POSIX-compliant; is essentially a re-implementation of Zsh/Bash in Rust
+
+Plans might include to implement a custom scripting language
+
+Other names:
+Oyshter?
+
+Capabilities:
+- Execute bash scripts
+- Call runtimes to execute programs with the appropriate shebang
+- Launch programs and feed them the appropriate arguments (extracting out args enclosed in quotes)
+- Send signals to child processes
+
+Built-in commands:
+cd 
+which 
+eval
+source
+setopt
+echo
+read
+kill
+exit
