@@ -31,3 +31,5 @@ Char matching for cursor
     -> Up shows history
     -> Left/Right moves cursor
     -> Down does nothing
+bash script interpretation
+change parsing to accept symbols without whitespace delimitation
