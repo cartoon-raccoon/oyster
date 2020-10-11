@@ -3,10 +3,10 @@ use std::process::Command;
 
 use nix::sys::signal::{signal, Signal, SigHandler,};
 
-use crate::parser::ParsedCmd;
+use crate::parser::Cmd;
 
 #[must_use]
-pub fn execute(cmd: ParsedCmd) -> bool {
+pub fn execute(cmd: Cmd) -> bool {
     let mut command = Command::new(cmd.cmd);
     if let Ok(mut child) = unsafe { 
         command
