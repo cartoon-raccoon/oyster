@@ -22,4 +22,12 @@ setopt
 echo
 read
 kill
-exit
+exit *
+
+Todo:
+Create cursor
+Autocompletion
+Char matching for cursor
+    -> Up shows history
+    -> Left/Right moves cursor
+    -> Down does nothing
