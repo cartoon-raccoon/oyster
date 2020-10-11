@@ -28,12 +28,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         if buffer.trim() == "exit" {
             process::exit(0);
         }
-        if let Some(cmd) = Lexer::parse(buffer.as_str()) {
-            if execute::execute(cmd) {
-                continue;
-            } else {
-                println!("Command exited unsuccessfully")
-            }
+        if let Some(commands) = Lexer::parse(buffer.as_str()) {
+            println!("{:?}", commands)
+            // if execute::execute(commands) {
+            //     continue;
+            // } else {
+            //     println!("Command exited unsuccessfully")
+            // }
         }
     }
 }
