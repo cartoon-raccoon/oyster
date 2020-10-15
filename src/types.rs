@@ -7,6 +7,7 @@ pub enum Token {
     Pipe2,
     And,
     Or,
+    Consec,
     Redirect,
     RDAppend,
     Background,
@@ -16,11 +17,11 @@ pub enum Token {
 pub enum Builtin {
     Cd(Vec<String>),
     Which(Vec<String>),
-    Eval(String),
-    Source(String), //use PathBuf instead?
-    Echo(String),
-    Alias(String),
-    Unalias(String),
+    Eval(Vec<String>),
+    Source(Vec<String>), //use PathBuf instead?
+    Echo(Vec<String>),
+    Alias(Vec<String>),
+    Unalias(Vec<String>),
     Read,
     Kill(Vec<String>),
     Exit,
@@ -33,6 +34,17 @@ pub struct Cmd {
     pub args: Vec<String>
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum JobStatus {
+    Completed,
+    Stopped,
+    Terminated,
+}
+
+#[derive(Debug, Clone)]
 pub struct Job {
-    cmd: Cmd,
+    pub cmds: Vec<Cmd>,
+    pub id: i32,
+    pub pgid: i32,
+    pub status: JobStatus,
 }
