@@ -34,5 +34,3 @@ Char matching for cursor
 job control
 bash script interpretation
 shell expansions
-redirections
-change parsing to accept symbols without whitespace delimitation
