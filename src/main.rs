@@ -1,9 +1,7 @@
-extern crate regex;
-extern crate nix;
-
 mod parser;
 mod execute;
 mod types;
+mod shell;
 
 use std::error::Error;
 use std::process;
@@ -12,7 +10,7 @@ use std::io::{self, Write};
 use nix::sys::signal::{signal, Signal, SigHandler,};
 
 use parser::Lexer;
-use parser::ParseResult;
+use parser::TokenizeResult::*;
 
 const PROMPT: &'static str = ">>>>>";
 
@@ -33,23 +31,27 @@ fn main() -> Result<(), Box<dyn Error>> {
             if buffer.trim() == "exit" {
                 process::exit(0);
             }
-            match Lexer::parse(buffer.as_str().trim()) {
-                ParseResult::UnmatchedDQuote => {
-                    println!("{:?}", buffer);
-                    buffer.pop();
+            match Lexer::tokenize(buffer.as_str().trim()) {
+                UnmatchedDQuote => {
                     print!("dquote> "); io::stdout().flush().unwrap();
-                    println!("{:?}", buffer);
                 }
-                ParseResult::UnmatchedSQuote => {
-                    buffer.pop();
+                UnmatchedSQuote => {
                     print!("squote> "); io::stdout().flush().unwrap();
                 }
-                ParseResult::EmptyCmd => {
+                EndsOnAnd => {
+                    print!("cmdand> "); io::stdout().flush().unwrap();
+                }
+                EndsOnOr => {
+                    print!("cmdor> "); io::stdout().flush().unwrap();
+                }
+                EndsOnPipe => {
+                    print!("pipe> "); io::stdout().flush().unwrap();
+                }
+                EmptyCommand => {
                     break;
                 }
-                ParseResult::Good(parsedtokens) => {
-                    println!("{:?}", buffer);
-                    println!("{:?}", parsedtokens);
+                Good(parsedtokens) => {
+                    println!("{:#?}", Lexer::parse_tokens(parsedtokens));
                     //execution happens here
                     break;
                 }
