@@ -1,7 +1,39 @@
-// pub enum Exec {
-//     Command(Cmd),
-//     Builtin(Builtin),
-// }
+use std::fmt;
+
+pub type ParseResult = Result<Vec<Job>, ParseError>;
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ParseError {
+    PipeMismatch,
+    InvalidFileRD,
+    InvalidFileDesc,
+    InvalidRDSyntax,
+    EmptyCommand,
+}
+
+impl std::error::Error for ParseError {}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParseError::PipeMismatch => {
+                write!(f, "error: pipe mismatch")
+            },
+            ParseError::InvalidFileRD => {
+                write!(f, "error: redirecting to invalid file")
+            },
+            ParseError::InvalidFileDesc => {
+                write!(f, "error: redirecting to invalid file descriptor")
+            },
+            ParseError::InvalidRDSyntax => {
+                write!(f, "error: invalid redirection syntax")
+            },
+            ParseError::EmptyCommand => {
+                write!(f, "error: empty command")
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
@@ -26,22 +58,6 @@ pub enum Redirect { //* Origin is always a file descriptor
     Override,
     Append,
 }
-
-// #[derive(Debug, Clone, PartialEq)]
-// pub enum Builtin {
-//     Cd(Vec<String>),
-//     Which(Vec<String>),
-//     Eval(Vec<String>),
-//     Source(Vec<String>), //? use PathBuf instead?
-//     Export(Vec<String>),
-//     Echo(Vec<String>),
-//     Alias(Vec<String>),
-//     Unalias(Vec<String>),
-//     Read,
-//     Kill(Vec<String>),
-//     Exit,
-
-// }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cmd {
