@@ -6,19 +6,30 @@ mod shell;
 use std::error::Error;
 use std::process;
 use std::io::{self, Write};
+use std::env;
 
 use nix::sys::signal::{signal, Signal, SigHandler,};
 
 use parser::Lexer;
 use parser::TokenizeResult::*;
+use execute::*;
+use shell::Shell;
 
 const PROMPT: &'static str = ">>>>>";
 
 fn main() -> Result<(), Box<dyn Error>> {
+    //TODO: Check if login shell
     unsafe {
         signal(Signal::SIGINT, SigHandler::SigIgn)?;
         signal(Signal::SIGQUIT, SigHandler::SigIgn)?;
     }
+    let mut shell = Shell::new();
+
+    let args: Vec<String> = env::args().collect();
+    if args.len() > 0 && args[0].starts_with('-') {
+        shell.is_login = true;
+    }
+
     loop {
         print!("{} ", PROMPT); io::stdout().flush().unwrap();
         let mut buffer = String::new();
@@ -51,8 +62,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                     break;
                 }
                 Good(parsedtokens) => {
-                    println!("{:#?}", Lexer::parse_tokens(parsedtokens));
-                    //execution happens here
+                    match execute_jobs(parsedtokens) {
+                        Ok(()) => {}
+                        Err(e) => {
+                            eprintln!("{}", e.to_string());
+                        }
+                    }
                     break;
                 }
             }
