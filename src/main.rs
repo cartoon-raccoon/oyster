@@ -2,6 +2,7 @@ mod parser;
 mod execute;
 mod types;
 mod shell;
+mod core;
 
 use std::error::Error;
 use std::process;
@@ -62,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     break;
                 }
                 Good(parsedtokens) => {
-                    match execute_jobs(parsedtokens) {
+                    match execute_jobs(&mut shell, parsedtokens) {
                         Ok(()) => {}
                         Err(e) => {
                             eprintln!("{}", e.to_string());
