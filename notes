@@ -18,19 +18,28 @@ cd
 which 
 eval
 source
-setopt
+export
 echo
 read
 kill
 exit *
 
-Todo:
-Create cursor
+Features:
 Autocompletion
+job control
+bash script interpretation
+shell expansions
+    -> $(command) || `command`
+    -> $variable
+    -> ~ to home dir
+    -> !! to last command (in editor)
+    Note: Shell expansions cannot contain redirections
+
+Todo:
+Create cursor (rustyline)
 Char matching for cursor
     -> Up shows history
     -> Left/Right moves cursor
     -> Down does nothing
-job control
-bash script interpretation
-shell expansions
+Break up the token parser function into smaller functions
+    for the shell expansion to use part of the functionality
