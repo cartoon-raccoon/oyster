@@ -1,5 +1,3 @@
-use std::process;
-
 use crate::types::{
     Redirect,
     ExecCondition,
@@ -7,6 +5,8 @@ use crate::types::{
     Cmd,
     Job,
     JobStatus,
+    ParseError,
+    ParseResult,
 };
 
 pub enum TokenizeResult {
@@ -248,8 +248,11 @@ impl Lexer {
     }
 
     /// Splits command and parses special characters
-    pub fn parse_tokens(tokens: Vec<Token>) -> Vec<Job> {
+    
+    //TODO: Add variable expansion and command expansion
+    pub fn parse_tokens(tokens: Vec<Token>) -> ParseResult {
 
+        let mut job_id = 1;
         let mut commandmap = Vec::<Vec<Token>>::new();
         let mut buffer: Vec<Token> = Vec::new();
 
@@ -291,8 +294,7 @@ impl Lexer {
             let mut execif = None;
             
             if commandmap[0][0] == Token::Pipe || commandmap[0][0] == Token::Pipe2 {
-                eprintln!("Parse error: First token is pipe");
-                process::exit(1);
+                return Err(ParseError::PipeMismatch)
             }
             //building each pipeline
             for token in tokengrp {
@@ -315,10 +317,9 @@ impl Lexer {
                             rd_to_filename = false;
                             continue;
                         }
-                        _ => {
-                            //TODO: return parse error
-                            eprintln!("Parse error: Redirecting to invalid file");
-                            process::exit(1);
+                        _ => { //* FIXME: Does not account for cases like:
+                               //* 2>>&1 (In zsh this appends stderr to a file called 1)
+                            return Err(ParseError::InvalidFileRD);
                         }
                     }
                 } else if rd_to_filedesc {
@@ -331,18 +332,14 @@ impl Lexer {
                             } else if dest == "2" {
                                 String::from("STDERR")
                             } else {
-                                //TODO: return parse error
-                                eprintln!("Parse error: Invalid file descriptor");
-                                process::exit(0);
+                                return Err(ParseError::InvalidFileDesc)
                             };
                             redirects.push(redirect.clone());
                             rd_to_filedesc = false;
                             continue;
                         }
                         _ => {
-                            //TODO: return parse error
-                            eprintln!("Parse error: Redirecting to invalid file");
-                            process::exit(1);
+                            return Err(ParseError::InvalidFileRD);
                         }
                     }
                 } else if all_to_filename {
@@ -360,9 +357,7 @@ impl Lexer {
                             continue;
                         }
                         _ => {
-                            //TODO: return parse error
-                            eprintln!("Parse error: Redirecting to invalid file");
-                            process::exit(1);
+                            return Err(ParseError::InvalidFileRD);
                         }
                     }
                 }
@@ -380,9 +375,7 @@ impl Lexer {
                         }
                         redirects.clear();
                         if buffer.len() < 1 {
-                            //TODO: return parser error
-                            eprintln!("Parse error: Empty command");
-                            process::exit(1);
+                            return Err(ParseError::EmptyCommand);
                         } else {
                             cmds.push(
                                 Cmd {
@@ -435,9 +428,7 @@ impl Lexer {
                                 }
                             }
                         } else {
-                            //TODO: Return parser error
-                            eprintln!("Parse error: Invalid redirect syntax");
-                            process::exit(1);
+                            return Err(ParseError::InvalidRDSyntax);
                         }
                     }
                     Token::RDStdOutErr => {
@@ -475,9 +466,7 @@ impl Lexer {
             }
             redirects.clear();
             if buffer.len() < 1 {
-                //TODO: return parser error
-                eprintln!("Parse error: Empty command");
-                process::exit(1);
+                return Err(ParseError::EmptyCommand);
             } else {
                 cmds.push(
                     Cmd {
@@ -497,13 +486,14 @@ impl Lexer {
                 Job {
                     cmds: cmds,
                     execnext: execif,
-                    id: 0,
+                    id: job_id,
                     pgid: 0,
                     status: JobStatus::InProgress,
                 }
             );
+            job_id += 1;
         }
 
-        jobs
+        Ok(jobs)
     }
 }
