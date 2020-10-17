@@ -1,6 +1,6 @@
 use crate::types::{
     Redirect,
-    ExecCondition,
+    Exec,
     Token,
     Cmd,
     Job,
@@ -386,6 +386,7 @@ impl Lexer {
                                         buffer[1..].to_vec()
                                     },
                                     redirects: final_redirects,
+                                    capture_stdout: false,
                                     pipe_stderr: if pipe == Token::Pipe {false} else {true},
                                 }
                             );
@@ -438,16 +439,16 @@ impl Lexer {
                     }
                     //* if matching on these, they must be the last item
                     Token::And => {
-                        execif = Some(ExecCondition::And);
+                        execif = Some(Exec::And);
                     }
                     Token::Or => {
-                        execif = Some(ExecCondition::Or);
+                        execif = Some(Exec::Or);
                     }
                     Token::Consec => {
-                        execif = Some(ExecCondition::Consec);
+                        execif = Some(Exec::Consec);
                     }
                     Token::Background => {
-                        execif = Some(ExecCondition::Background);
+                        execif = Some(Exec::Background);
                     }
                     _ => {
                         
@@ -477,6 +478,7 @@ impl Lexer {
                             buffer[1..].to_vec()
                         },
                         redirects: final_redirects,
+                        capture_stdout: false,
                         pipe_stderr: false,
                     }
                 );
