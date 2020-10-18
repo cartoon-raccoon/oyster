@@ -7,7 +7,7 @@ use crate::types::Job;
 pub struct Shell {
     jobs: BTreeMap<i32, Job>,
     aliases: HashMap<String, String>,
-    env: HashMap<String, String>,
+    pub env: HashMap<String, String>,
     vars: HashMap<String, String>,
     current_dir: PathBuf,
     pgid: i32,
@@ -51,3 +51,5 @@ impl Shell {
 
     }
 }
+
+//TODO: Command and variable expansion

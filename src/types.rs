@@ -1,4 +1,5 @@
 use std::fmt;
+use std::collections::HashMap;
 
 pub type ParseResult = Result<Vec<Job>, ParseError>;
 
@@ -64,7 +65,17 @@ pub struct Cmd {
     pub cmd: String,
     pub args: Vec<String>,
     pub redirects: Vec<(String, Redirect, String)>,
+    pub capture_stdout: bool,
     pub pipe_stderr: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Job {
+    pub cmds: Vec<Cmd>,
+    pub execnext: Option<Exec>,
+    pub id: i32,
+    pub pgid: i32,
+    pub status: JobStatus,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -75,19 +86,33 @@ pub enum JobStatus {
     Terminated,
 }
 
+pub struct CommandParams {
+    pub isatty: bool,
+    pub background: bool,
+    pub capture_output: bool,
+    pub env: HashMap<String, String>,
+}
+
+pub struct CommandResult {
+    pub status: i32,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+impl CommandResult {
+    pub fn new() -> Self {
+        CommandResult {
+            status: 0,
+            stdout: String::new(),
+            stderr: String::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ExecCondition {
+pub enum Exec {
     And,
     Or,
     Consec,
     Background,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Job {
-    pub cmds: Vec<Cmd>,
-    pub execnext: Option<ExecCondition>,
-    pub id: i32,
-    pub pgid: i32,
-    pub status: JobStatus,
 }
