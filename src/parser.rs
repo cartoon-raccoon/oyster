@@ -380,11 +380,7 @@ impl Lexer {
                             cmds.push(
                                 Cmd {
                                     cmd: buffer[0].clone(),
-                                    args: if buffer.len() == 1 {
-                                        Vec::new()
-                                    } else {
-                                        buffer[1..].to_vec()
-                                    },
+                                    args: buffer.clone(),
                                     redirects: final_redirects,
                                     capture_stdout: false,
                                     pipe_stderr: if pipe == Token::Pipe {false} else {true},
@@ -472,11 +468,7 @@ impl Lexer {
                 cmds.push(
                     Cmd {
                         cmd: buffer[0].clone(),
-                        args: if buffer.len() == 1 {
-                            Vec::new()
-                        } else {
-                            buffer[1..].to_vec()
-                        },
+                        args: buffer.clone(),
                         redirects: final_redirects,
                         capture_stdout: false,
                         pipe_stderr: false,
