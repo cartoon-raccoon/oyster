@@ -18,6 +18,8 @@ use nix::Result;
 use nix::Error;
 use nix::errno::Errno;
 
+use crate::shell;
+
 //placeholder - move to job control
 use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
 
@@ -92,6 +94,7 @@ pub fn run_pipeline(
         match waitpid(Pid::from_raw(childpid), Some(WaitPidFlag::WUNTRACED))? {
             WaitStatus::Exited(pid, status) => {
                 println!("process {} exited with status {}", pid, status);
+                cmdresult.status = status;
             }
             WaitStatus::Signaled(pid, signal, cd) => {
                 println!("process {} was signaled by {}: coredump? {}", pid, signal, cd);
@@ -105,7 +108,12 @@ pub fn run_pipeline(
         }
     }
 
-    Ok((term_given, CommandResult::new()))
+    for pipe in pipes {
+        close(pipe.0)?;
+        close(pipe.1)?;
+    }
+
+    Ok((term_given, cmdresult))
 }
 
 /// This is one deep-ass core function.
@@ -116,6 +124,7 @@ fn run_command(
     pipes: &Vec<(RawFd, RawFd)>,
     params: CommandParams,
     term_given: &mut bool,
+    // for capturing output
     results: &mut CommandResult,) -> Result<i32> {
 
     // Pre: Create pipes to capture output (when doing command expansion)
@@ -172,6 +181,7 @@ fn run_command(
     let pipes_count = pipes.len();
     let forkresult = fork()?;
     match forkresult {
+        //cannot return errors from here, have to exit
         ForkResult::Child => {
             //setting process groups
             let pid = getpid();
@@ -203,7 +213,8 @@ fn run_command(
             //connecting up pipes for commands to read from
             if idx > 0 { //not the first command
                 eprintln!("Connecting stdin to pipe from command {} pid {}", idx, pid);
-                match dup2(pipes[idx - 1].0, 0) {
+                let fds = pipes[idx - 1];
+                match dup2(fds.0, 0) {
                     Ok(_) => {},
                     Err(e) => {
                         eprintln!("{}, failed to connect pipe for process {}", e, pid);
@@ -211,24 +222,20 @@ fn run_command(
                     }
                 }
                 eprintln!("Closing pipe read end");
-                match close(pipes[idx - 1].0) {
+                match close(fds.0) {
                     Ok(()) => {},
                     Err(e) => {
                         eprintln!("{}, failed to connect pipe for process {}", e, pid);
                         process::exit(1);
                     }
                 }
-                // let mut fout = unsafe { File::from_raw_fd(0) };
-                // let mut sout = String::new();
-                // eprintln!("Reading to string from process {}", pid);
-                // fout.read_to_string(&mut sout).expect("Could not read to string");
-                // eprintln!("Pulled from pipe: {}", sout);
             }
 
             //connecting up pipes for commands to write to
             if idx < pipes_count {
                 eprintln!("Connecting stdout to pipe from command {} pid {}", idx, pid);
-                match dup2(pipes[idx].1, 1) {
+                let fds = pipes[idx];
+                match dup2(fds.1, 1) {
                     Ok(_) => {
                         // eprintln!("Writing to file descriptor {}", fd);
                         // std::io::stdout().write(b"Hello\n").unwrap();
@@ -239,17 +246,13 @@ fn run_command(
                         process::exit(1);
                     }
                 }
-                eprintln!("Closing pipe write end");
-                match close(pipes[idx].1) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        eprintln!("could not close filedesc: {}", e);
-                    }
-                }
-                match close(1) {
-                    Ok(_) => {},
-                    Err(e) => {eprintln!("Could not close stdout: {}", e);}
-                }
+                // eprintln!("Closing pipe write end");
+                // match close(fds.1) {
+                //     Ok(_) => {}
+                //     Err(e) => {
+                //         eprintln!("could not close filedesc: {}", e);
+                //     }
+                // }
             }
 
             //TODO 1: Handle redirects
@@ -262,6 +265,7 @@ fn run_command(
             //TODO: Search in path
             let cmdstring = cmd.cmd.clone();
             let c_cmd = CString::new(cmdstring.as_str()).unwrap();
+            println!("command passed to execvp: {:?}", c_cmd);
             let args: Vec<CString> = cmd.args.clone().into_iter()
                 .map(|arg| {
                     match CString::new(arg.as_str()) {
@@ -273,7 +277,8 @@ fn run_command(
                     }
                 }).collect();
             let c_args: Vec<&CStr> = args.iter().map(|arg| arg.as_c_str()).collect();
-            match execvp(&c_cmd, c_args.as_slice()) {
+            println!("args passed to execvp: {:?}", c_args);
+            match execvp(&c_cmd, &c_args) {
                 Ok(_) => {}
                 Err(e) => {
                     match e {
@@ -296,8 +301,11 @@ fn run_command(
             process::exit(1);
         }
         ForkResult::Parent{child,..} => {
-            if idx == 0 {
-                *pgid = child; //setting pgid to set for subsequent forks
+            if !params.capture_output && params.isatty && idx == 0 {
+                *pgid = child;
+                if !params.background {
+                    *term_given = shell::give_terminal_to(child)?;
+                }
             }
             match setpgid(child, *pgid) {
                 Ok(()) => {}

@@ -1,9 +1,11 @@
 use std::error::Error;
 
+use nix::unistd::getpgid;
+
 use crate::types::{Token, Job, Exec};
 use crate::parser::Lexer;
 use crate::core;
-use crate::shell::Shell;
+use crate::shell::{self, Shell};
 
 
 /// High level control of all jobs. Conditional execution is handled here.
@@ -26,21 +28,21 @@ pub fn execute_jobs(shell: &mut Shell, tokens: Vec<Token>) -> Result<(), Box<dyn
         if let Some(execcond) = execif {
             match execcond {
                 Exec::And => { //continue if last job succeeded
-                    if execute(shell, job, false) {
+                    if execute(shell, job, false)? {
                         continue;
                     } else {
                         //return error
                     }
                 }
                 Exec::Or => { //continue if last job failed
-                    if !execute(shell, job, false) {
+                    if !execute(shell, job, false)? {
                         continue;
                     } else {
                         //return error
                     }
                 }
                 Exec::Consec => { //unconditional execution
-                    execute(shell, job, true);
+                    execute(shell, job, true)?;
                     continue;
                 }
                 Exec::Background => { //run jobs asynchronously
@@ -48,7 +50,7 @@ pub fn execute_jobs(shell: &mut Shell, tokens: Vec<Token>) -> Result<(), Box<dyn
                 }
             }
         } else { //if is None; this should only occur on the last job
-            execute(shell, job, false);
+            execute(shell, job, false)?;
         }
     }
     Ok(())
@@ -56,38 +58,40 @@ pub fn execute_jobs(shell: &mut Shell, tokens: Vec<Token>) -> Result<(), Box<dyn
 
 /// Lower level control. Executes single pipeline.
 /// Checks for builtins without pipeline
-pub fn execute(shell: &mut Shell, job: Job, background: bool) -> bool {
+pub fn execute(shell: &mut Shell, job: Job, background: bool) -> Result<bool, Box<dyn Error>> {
 
     if job.cmds.len() == 1 { //no pipeline
         match job.cmds[0].cmd.as_str() {
             "cd" => {
-                return true;
             }
             "which" => {
-                return true;
             }
             "eval" => {
-                return true;
             }
             "source" => {
-                return true;
             }
             "export" => {
-                return true;
             }
             "echo" => {
-                return true;
             }
             "kill" => {
-                return true;
             }
             "exit" => {
-                return true;
             }
             _ => {}
         }
     }
     
-    core::run_pipeline(shell, job, background, false);
-    true
+    match core::run_pipeline(shell, job, background, false) {
+        Ok((given, result)) => {
+            if given {
+                let pgid = getpgid(None)?;
+;               shell::give_terminal_to(pgid)?;
+            }
+        }
+        Err(e) => {
+
+        }
+    }
+    Ok(true)
 }
