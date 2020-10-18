@@ -2,6 +2,18 @@ use std::collections::HashMap;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use nix::Result;
+use nix::unistd::{
+    Pid,
+    tcsetpgrp,
+};
+use nix::sys::signal::{
+    Signal,
+    SigSet,
+    pthread_sigmask,
+    SigmaskHow,
+};
+
 use crate::types::Job;
 
 pub struct Shell {
@@ -50,6 +62,27 @@ impl Shell {
     pub fn with_config() {
 
     }
+}
+
+pub fn give_terminal_to(pgid: Pid) -> Result<bool> {
+    let mut mask = SigSet::empty();
+    let mut old_mask = SigSet::empty();
+
+    mask.add(Signal::SIGTTIN);
+    mask.add(Signal::SIGTTOU);
+    mask.add(Signal::SIGTSTP);
+    mask.add(Signal::SIGCHLD);
+
+    pthread_sigmask(SigmaskHow::SIG_BLOCK, 
+                    Some(&mask), 
+                    Some(&mut old_mask)
+                )?;
+    tcsetpgrp(1, pgid)?;
+    pthread_sigmask(SigmaskHow::SIG_SETMASK, 
+                    Some(&old_mask), 
+                    Some(&mut mask)
+                )?;
+    Ok(true)
 }
 
 //TODO: Command and variable expansion
