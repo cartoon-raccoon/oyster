@@ -328,9 +328,9 @@ impl Lexer {
                         Token::DQuote(dest) | 
                         Token::SQuote(dest) => {
                             redirect[2] = if dest == "1" {
-                                String::from("STDOUT")
+                                String::from("&1")
                             } else if dest == "2" {
-                                String::from("STDERR")
+                                String::from("&2")
                             } else {
                                 return Err(ParseError::InvalidFileDesc)
                             };
@@ -342,6 +342,7 @@ impl Lexer {
                             return Err(ParseError::InvalidFileRD);
                         }
                     }
+                //TODO: Appending not yet implemented; only supports truncation
                 } else if all_to_filename {
                     match token {
                         Token::Word(dest) | 
