@@ -25,9 +25,6 @@ use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
 
 //placeholder imports for bugfixing
 use nix::unistd::execvp;
-use std::fs::File;
-use std::os::unix::io::FromRawFd;
-use std::io::{Read, Write};
 
 use crate::types::*;
 use crate::shell::Shell;
@@ -176,8 +173,6 @@ fn run_command(
     let mut fds_capture_stdout = pipe()?;
     let mut fds_capture_stderr = pipe()?;
 
-    println!("Command position: {}", idx);
-    
     let pipes_count = pipes.len();
     let forkresult = fork()?;
     match forkresult {
@@ -187,72 +182,24 @@ fn run_command(
             let pid = getpid();
             if idx == 0 {
                 *pgid = pid; //setting pgid to own pid
-                match setpgid(Pid::from_raw(0), pid) { //setting pgid to own pid
-                    Ok(()) => { //* Debug code vvv (remove this after use)
-                        println!("Running {} with pid {} and pgid {}", cmd.cmd, pid, pgid);
-                    },
-                    Err(e) => {
-                        eprintln!("{}: failed to set pgid of process pid {} and pgid {}", e, pid, pgid);
-                        process::exit(1);
-                    }
-                }
+                setpgid(Pid::from_raw(0), pid)
+                    .unwrap_or_exit("oyster: failed to set pgid", 2);
             } else {
-                match setpgid(Pid::from_raw(0), *pgid) {
-                    Ok(()) => {
-                        println!("Running {} with pid {} and pgid {}", cmd.cmd, pid, pgid);
-                    },
-                    Err(e) => {
-                        eprintln!("{}: failed to set pgid of process pid {} and pgid {}", e, pid, pgid);
-                        process::exit(1);
-                    }
-                }
+                setpgid(Pid::from_raw(0), *pgid)
+                    .unwrap_or_exit("oyster: failed to set pgid", 2);
             }
-
-            //*BUG: NOT FUCKING READING PROPERLY FROM STDIN IDFK WHY
 
             //connecting up pipes for commands to read from
             if idx > 0 { //not the first command
-                eprintln!("Connecting stdin to pipe from command {} pid {}", idx, pid);
                 let fds = pipes[idx - 1];
-                match dup2(fds.0, 0) {
-                    Ok(_) => {},
-                    Err(e) => {
-                        eprintln!("{}, failed to connect pipe for process {}", e, pid);
-                        process::exit(1);
-                    }
-                }
-                eprintln!("Closing pipe read end");
-                match close(fds.0) {
-                    Ok(()) => {},
-                    Err(e) => {
-                        eprintln!("{}, failed to connect pipe for process {}", e, pid);
-                        process::exit(1);
-                    }
-                }
+                dup2(fds.0, 0).unwrap_or_exit("oyster: failed to duplicate file descriptor", 3);
+                close(fds.0).unwrap_or_exit("oyster: failed to connect pipes", 4);
             }
 
             //connecting up pipes for commands to write to
             if idx < pipes_count {
-                eprintln!("Connecting stdout to pipe from command {} pid {}", idx, pid);
                 let fds = pipes[idx];
-                match dup2(fds.1, 1) {
-                    Ok(_) => {
-                        // eprintln!("Writing to file descriptor {}", fd);
-                        // std::io::stdout().write(b"Hello\n").unwrap();
-                        // std::io::stdout().flush().unwrap();
-                    },
-                    Err(e) => {
-                        eprintln!("{}, failed to connect pipe for process {}", e, pid);
-                        process::exit(1);
-                    }
-                }
-                // eprintln!("Closing pipe write end");
-                // match close(fds.1) {
-                //     Ok(_) => {}
-                //     Err(e) => {
-                //         eprintln!("could not close filedesc: {}", e);
-                //     }
-                // }
+                dup2(fds.1, 1).unwrap_or_exit("oyster: failed to connect pipes", 4);
             }
 
             //TODO 1: Handle redirects
@@ -264,20 +211,14 @@ fn run_command(
             //TODO: Load in env vars
             //TODO: Search in path
             let cmdstring = cmd.cmd.clone();
-            let c_cmd = CString::new(cmdstring.as_str()).unwrap();
-            println!("command passed to execvp: {:?}", c_cmd);
+            let c_cmd = CString::new(cmdstring.as_str())
+                .unwrap_or_exit("oyster: cstring error converting command", 5);
             let args: Vec<CString> = cmd.args.clone().into_iter()
                 .map(|arg| {
-                    match CString::new(arg.as_str()) {
-                        Ok(c_arg) => c_arg,
-                        Err(_) => {
-                            eprintln!("oyster: could not process command arguments");
-                            process::exit(0);
-                        }
-                    }
+                    CString::new(arg.as_str())
+                        .unwrap_or_exit("oyster: cstring error parsing command arguments", 5)
                 }).collect();
             let c_args: Vec<&CStr> = args.iter().map(|arg| arg.as_c_str()).collect();
-            println!("args passed to execvp: {:?}", c_args);
             match execvp(&c_cmd, &c_args) {
                 Ok(_) => {}
                 Err(e) => {
@@ -307,9 +248,23 @@ fn run_command(
                     *term_given = shell::give_terminal_to(child)?;
                 }
             }
+
+            if idx < pipes_count {
+                let fds = pipes[idx];
+                match close(fds.1) {
+                    Ok(()) => {},
+                    Err(e) => {
+                        eprintln!("error {}: could not close pipe", e);
+                        return Err(e);
+                    }
+                }
+            }
             match setpgid(child, *pgid) {
                 Ok(()) => {}
-                Err(e) => { eprintln!("Could not set child pgid from parent: {}", e); }
+                Err(e) => { 
+                    eprintln!("Could not set child pgid from parent: {}", e); 
+                    return Err(e);
+                }
             }
 
             let child_pid: i32 = child.into();

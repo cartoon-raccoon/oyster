@@ -16,7 +16,6 @@ pub fn execute_jobs(shell: &mut Shell, tokens: Vec<Token>) -> Result<(), Box<dyn
     * Step 2: Pass job to execute()
     */
     let jobs = Lexer::parse_tokens(tokens)?;
-    println!("{:?}", jobs);
 
     //* perform all expansions here
     //* this will alter the job structs
@@ -82,16 +81,10 @@ pub fn execute(shell: &mut Shell, job: Job, background: bool) -> Result<bool, Bo
         }
     }
     
-    match core::run_pipeline(shell, job, background, false) {
-        Ok((given, result)) => {
-            if given {
-                let pgid = getpgid(None)?;
-;               shell::give_terminal_to(pgid)?;
-            }
-        }
-        Err(e) => {
-
-        }
+    let (given, result) = core::run_pipeline(shell, job, background, false)?;
+    if given {
+        let pgid = getpgid(None)?;
+        shell::give_terminal_to(pgid)?;
     }
     Ok(true)
 }
