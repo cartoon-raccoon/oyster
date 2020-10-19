@@ -32,6 +32,7 @@ shell expansions
     -> $(command) || `command`
     -> $variable
     -> ~ to home dir
+    -> - (when used with cd) to previous dir
     -> !! to last command (in editor)
     Note: Shell expansions cannot contain redirections
 
@@ -43,3 +44,4 @@ Char matching for cursor
     -> Down does nothing
 Break up the token parser function into smaller functions
     for the shell expansion to use part of the functionality
+ERROR HANDLING AAAA
