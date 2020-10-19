@@ -1,4 +1,9 @@
-use std::os::unix::io::RawFd;
+use std::fs::File;
+use std::io::Read;
+use std::os::unix::io::{
+    RawFd,
+    FromRawFd,
+};
 use std::process;
 use std::ffi::{CString, CStr};
 
@@ -10,7 +15,7 @@ use nix::unistd::{
     fork, 
     pipe, 
     execve, 
-    dup2, 
+    dup, dup2, 
     close,
     ForkResult
 };
@@ -89,8 +94,7 @@ pub fn run_pipeline(
     //placeholder code - waiting will be moved to job control
     for childpid in children {
         match waitpid(Pid::from_raw(childpid), Some(WaitPidFlag::WUNTRACED))? {
-            WaitStatus::Exited(pid, status) => {
-                println!("process {} exited with status {}", pid, status);
+            WaitStatus::Exited(_pid, status) => {
                 cmdresult.status = status;
             }
             WaitStatus::Signaled(pid, signal, cd) => {
@@ -124,57 +128,21 @@ fn run_command(
     // for capturing output
     results: &mut CommandResult,) -> Result<i32> {
 
-    // Pre: Create pipes to capture output (when doing command expansion)
-    //*Fork!
-    // 
-    //If in child: ========================================
-    // 0. Set the pgid
-    //
-    // 1. If idx > 0 grab the appropriate pipe from pipes
-    //    Hook up stdin (0) to pipe using dup2():
-    //
-    //    dup2(pipefd.0, 0)
-    //    close(pipefd.0)
-    //
-    // 2. If idx < pipes.len() hook up stdout to pipes:
-    //    dup2(pipefd.1, 1)
-    //    close(pipefd.1)
-    //
-    // 3. Process redirects and change file descriptors as necessary
-    //    TODO: Create a function to create a raw fd from a filename
-    //    Use OpenOptions to set append or truncate
-    //
-    // 4. If output needs to be captured, redirect stdout to capture fds
-    //
-    // 5. Check if any commands are builtin, and exec them as necessary
-    //
-    // 6. Load in environment variables and convert for compatibility
-    //
-    // 7. Find program in path, print error and exit if not found
-    //
-    // 8. Execute! (execve with args and env)
-    //
-    //If in parent: ========================================
-    //
-    // 1. Get child's PID
-    //
-    // 2. Give terminal to child 
-    //    (if on first command, capture output is off and isatty)
-    //
-    // 3. Close any open file descriptors
-    //    Close write ends of the stdout/stderr capture pipes
-    //    If on the second last command (last command spawned) and capturing output,
-    //    Read from the stdout/stderr descriptors into the strings
-    //
-    // 4. Close the read ends of the stdout/stderr descriptors
-    //
-    // 5. Return child's pid
+    let fds_capture_stdout = pipe()?;
+    let fds_capture_stderr = pipe()?;
 
-    let mut fds_capture_stdout = pipe()?;
-    let mut fds_capture_stderr = pipe()?;
+    const FD_DUPLICATE_ERR: &'static str =
+        "oyster: failed to duplicate file descriptor";
+    const PIPE_CONNECT_ERR: &'static str = 
+        "oyster: failed to connect pipes";
+    const PIPE_END_CLOSE_ERR: &'static str =
+        "oyster: could not close pipe file descriptor";
+    const PGID_SET_ERR: &'static str = 
+        "oyster: failed to set pgid for child";
 
     let pipes_count = pipes.len();
     let forkresult = fork()?;
+
     match forkresult {
         //cannot return errors from here, have to exit
         ForkResult::Child => {
@@ -183,23 +151,75 @@ fn run_command(
             if idx == 0 {
                 *pgid = pid; //setting pgid to own pid
                 setpgid(Pid::from_raw(0), pid)
-                    .unwrap_or_exit("oyster: failed to set pgid", 2);
+                    .unwrap_or_exit(PGID_SET_ERR, 2);
             } else {
                 setpgid(Pid::from_raw(0), *pgid)
-                    .unwrap_or_exit("oyster: failed to set pgid", 2);
+                    .unwrap_or_exit(PGID_SET_ERR, 2);
             }
 
             //connecting up pipes for commands to read from
             if idx > 0 { //not the first command
                 let fds = pipes[idx - 1];
-                dup2(fds.0, 0).unwrap_or_exit("oyster: failed to duplicate file descriptor", 3);
-                close(fds.0).unwrap_or_exit("oyster: failed to connect pipes", 4);
+                dup2(fds.0, 0).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                close(fds.0).unwrap_or_exit(PIPE_CONNECT_ERR, 4);
             }
 
             //connecting up pipes for commands to write to
             if idx < pipes_count {
                 let fds = pipes[idx];
-                dup2(fds.1, 1).unwrap_or_exit("oyster: failed to connect pipes", 4);
+                dup2(fds.1, 1).unwrap_or_exit(PIPE_CONNECT_ERR, 4);
+            }
+
+            let mut stdout_redirected = false;
+            //let mut stderr_redirected = false;
+
+            for redirect in &cmd.redirects {
+                
+                if redirect.0 == "&2" && redirect.2 == "&1" {
+                    if idx < pipes_count {
+                        let fds = pipes[idx];
+                        dup2(fds.1, 2).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                    } else if !params.capture_output {
+                        let fd = dup(2).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                        dup2(fd, 2).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                    }
+                    //ya wanna redirect wih output capture enabled?
+                    //sure, don't blame me for any shitfuckery that happens.
+                } else if redirect.0 == "1" && redirect.2 == "&2" {
+                    if idx < pipes_count || !params.capture_output {
+                        let fd = dup(2).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                        dup2(fd, 1).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                    }
+                } else if redirect.0 == "1" && redirect.2 == "&1" ||
+                          redirect.0 == "2" && redirect.2 == "&2" {
+                    //do nothing because no one would do this
+                    //but we need to emulate zsh's behaviour
+                    //if we didn't catch this case, 
+                    //1>&1 would redirect stdin to a file called "&1"
+                } else {
+                    let to_append = redirect.1 == Redirect::Append;
+                    let fd = shell::create_fd_from_file(&redirect.2, to_append);
+                    if redirect.0 == "1" {
+                        dup2(fd, 1).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                        stdout_redirected = true;
+                    } else {
+                        dup2(fd, 2).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                        //stderr_redirected = true;
+                    }
+                }
+            }
+
+            if idx == pipes_count && params.capture_output {
+                if !stdout_redirected {
+                    close(fds_capture_stdout.0).unwrap_or_exit(PIPE_END_CLOSE_ERR, 4);
+                    dup2(fds_capture_stdout.1, 1).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                    close(fds_capture_stdout.1).unwrap_or_exit(PIPE_END_CLOSE_ERR, 4);
+                }
+                // if !stderr_redirected {
+                //     close(fds_capture_stderr.0).unwrap_or_exit(PIPE_END_CLOSE_ERR, 4);
+                //     dup2(fds_capture_stderr.1, 2).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                //     close(fds_capture_stderr.1).unwrap_or_exit(PIPE_END_CLOSE_ERR, 4);
+                // }
             }
 
             //TODO 1: Handle redirects
@@ -249,6 +269,14 @@ fn run_command(
                 }
             }
 
+            match setpgid(child, *pgid) {
+                Ok(()) => {}
+                Err(e) => { 
+                    eprintln!("Could not set child pgid from parent: {}", e); 
+                    return Err(e);
+                }
+            }
+
             if idx < pipes_count {
                 let fds = pipes[idx];
                 match close(fds.1) {
@@ -259,11 +287,17 @@ fn run_command(
                     }
                 }
             }
-            match setpgid(child, *pgid) {
-                Ok(()) => {}
-                Err(e) => { 
-                    eprintln!("Could not set child pgid from parent: {}", e); 
-                    return Err(e);
+
+            if idx == pipes_count && params.capture_output {
+                close(fds_capture_stdout.1)?;
+                close(fds_capture_stderr.1)?;
+                let mut stdoutfd = unsafe {File::from_raw_fd(fds_capture_stdout.0)};
+                let mut sout = String::new();
+                stdoutfd.read_to_string(&mut sout).unwrap();
+                *results = CommandResult {
+                    status: 0,
+                    stdout: sout,
+                    stderr: String::new(),
                 }
             }
 
