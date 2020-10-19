@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::fs::OpenOptions;
+use std::os::unix::io::IntoRawFd;
 
-use nix::Result;
 use nix::unistd::{
     Pid,
     tcsetpgrp,
@@ -14,7 +15,10 @@ use nix::sys::signal::{
     SigmaskHow,
 };
 
-use crate::types::Job;
+use crate::types::{
+    Job,
+    UnwrapOr,
+};
 
 pub struct Shell {
     jobs: BTreeMap<i32, Job>,
@@ -64,7 +68,7 @@ impl Shell {
     }
 }
 
-pub fn give_terminal_to(pgid: Pid) -> Result<bool> {
+pub fn give_terminal_to(pgid: Pid) -> nix::Result<bool> {
     let mut mask = SigSet::empty();
     let mut old_mask = SigSet::empty();
 
@@ -83,6 +87,18 @@ pub fn give_terminal_to(pgid: Pid) -> Result<bool> {
                     Some(&mut mask)
                 )?;
     Ok(true)
+}
+
+pub fn create_fd_from_file(dest: &str, to_append: bool) -> i32 {
+    let mut file = OpenOptions::new();
+    if to_append {
+        file.append(true);
+    } else {
+        file.write(true).truncate(true);
+    }
+    let file = file.create(true).open(dest)
+        .unwrap_or_exit("oyster: could not create file", 3);
+    file.into_raw_fd()
 }
 
 //TODO: Command and variable expansion
