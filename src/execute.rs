@@ -16,6 +16,7 @@ pub fn execute_jobs(shell: &mut Shell, tokens: Vec<Token>) -> Result<(), Box<dyn
     * Step 2: Pass job to execute()
     */
     let jobs = Lexer::parse_tokens(tokens)?;
+    println!("{:?}", jobs);
 
     //* perform all expansions here
     //* this will alter the job structs
@@ -27,25 +28,26 @@ pub fn execute_jobs(shell: &mut Shell, tokens: Vec<Token>) -> Result<(), Box<dyn
         if let Some(execcond) = execif {
             match execcond {
                 Exec::And => { //continue if last job succeeded
-                    if execute(shell, job, false)? {
+                    if execute(shell, job, false)? == 0 {
                         continue;
                     } else {
-                        //return error
+                        break;
                     }
                 }
                 Exec::Or => { //continue if last job failed
-                    if !execute(shell, job, false)? {
+                    if execute(shell, job, false)? != 0 {
                         continue;
                     } else {
-                        //return error
+                        break;
                     }
                 }
                 Exec::Consec => { //unconditional execution
-                    execute(shell, job, true)?;
+                    execute(shell, job, false)?;
                     continue;
                 }
                 Exec::Background => { //run jobs asynchronously
-
+                    execute(shell, job, true)?;
+                    continue;
                 }
             }
         } else { //if is None; this should only occur on the last job
@@ -57,7 +59,7 @@ pub fn execute_jobs(shell: &mut Shell, tokens: Vec<Token>) -> Result<(), Box<dyn
 
 /// Lower level control. Executes single pipeline.
 /// Checks for builtins without pipeline
-pub fn execute(shell: &mut Shell, job: Job, background: bool) -> Result<bool, Box<dyn Error>> {
+pub fn execute(shell: &mut Shell, job: Job, background: bool) -> Result<i32, Box<dyn Error>> {
 
     if job.cmds.len() == 1 { //no pipeline
         match job.cmds[0].cmd.as_str() {
@@ -86,5 +88,5 @@ pub fn execute(shell: &mut Shell, job: Job, background: bool) -> Result<bool, Bo
         let pgid = getpgid(None)?;
         shell::give_terminal_to(pgid)?;
     }
-    Ok(true)
+    Ok(result.status)
 }
