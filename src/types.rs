@@ -1,5 +1,6 @@
 use std::fmt;
 use std::collections::HashMap;
+use std::process;
 
 pub type ParseResult = Result<Vec<Job>, ParseError>;
 
@@ -115,4 +116,31 @@ pub enum Exec {
     Or,
     Consec,
     Background,
+}
+
+/// A trait to allow for graceful exiting on error instead of panicking.
+/// Used to save on match statements for matching results.
+pub trait UnwrapOr {
+    type Item;
+
+    /// Returns enclosed type if successful and exits with a 
+    /// user-specified error code if an error is encountered instead.
+    /// 
+    /// Does not support displaying the error yet,
+    /// only accepts custom error messages.
+    fn unwrap_or_exit(self, errmsg: &str, code: i32) -> Self::Item;
+}
+
+impl<T,E> UnwrapOr for Result<T,E> {
+    type Item = T;
+
+    fn unwrap_or_exit(self, errmsg: &str, code: i32) -> T {
+        match self {
+            Ok(enclosed) => enclosed,
+            Err(_) => {
+                eprintln!("{}", errmsg);
+                process::exit(code);
+            }
+        }
+    }
 }
