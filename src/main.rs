@@ -3,6 +3,7 @@ mod execute;
 mod types;
 mod shell;
 mod core;
+mod builtins;
 
 use std::error::Error;
 use std::process;
@@ -30,7 +31,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     if args.len() > 0 && args[0].starts_with('-') {
         shell.is_login = true;
     }
-
+    
     loop {
         print!("{} ", PROMPT); io::stdout().flush().unwrap();
         let mut buffer = String::new();
