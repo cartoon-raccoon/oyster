@@ -21,6 +21,13 @@ use crate::types::{
     Job,
     UnwrapOr,
 };
+use crate::execute;
+use crate::parser::Lexer;
+use crate::types::{
+    CmdSubError,
+    ParseError,
+    TokenizeResult::*
+};
 
 #[derive(Clone, Debug)]
 pub struct Shell {
@@ -65,7 +72,7 @@ impl Shell {
     }
     /// Returns the value of an alias if it exists in the shell.
     /// Normally called internally during alias replacement
-    /// and should not be invoked manuall by the user.
+    /// and should not be invoked manually by the user.
     pub fn get_alias(&self, key: &str) -> Option<String> {
         if let Some(entry) = self.aliases.get(key) {
             Some(entry.clone())
@@ -160,6 +167,56 @@ pub fn replace_aliases(shell: &Shell, tokens: &mut Vec<String>) {
     }
 }
 
+// This command is gonna be sooo fucking slow
+pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<String, CmdSubError> {
+    let re_backtick = Regex::new(r"`[ >&|\-a-zA-Z0-9]*`").unwrap();
+    let re_parenths = Regex::new(r"$([ >&|\-a-zA-Z0-9]*)").unwrap();
+    let mut outputs = Vec::<String>::new();
+    if let Some(bt_captures) = re_backtick.captures(&string) {
+        println!("command matched");
+        for capture in bt_captures.iter() {
+            if let Some(cmdmatch) = capture {
+                let mut newstring = cmdmatch.as_str()[1..].to_string();
+                newstring.pop();
+                match Lexer::tokenize(shell, newstring, true) {
+                    UnmatchedDQuote | UnmatchedSQuote => {
+                        eprintln!("oyster: unmatched quote");
+                        return Err(CmdSubError);
+                    }
+                    EndsOnAnd | EndsOnOr | EndsOnPipe => {
+                        eprintln!("oyster: parse error, ends on delimiter");
+                        return Err(CmdSubError);
+                    }
+                    EmptyCommand => {
+                        eprintln!("warning: empty command");
+                        return Ok(String::new());
+                    }
+                    Good(tokens) => {
+                        match execute::execute_jobs(shell, tokens, true) {
+                            Ok(jobs) => {
+                                outputs.push(jobs.1);
+                                println!("{:?}", outputs);
+                            }
+                            Err(e) => {
+                                eprintln!("{}", e);
+                                return Err(CmdSubError);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for output in outputs {
+            println!("{:?}", output);
+            string = re_backtick.replace(
+                &string.clone(), 
+                output.as_str()
+            ).to_string();
+        }
+    }
+    Ok(string)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,5 +299,15 @@ mod tests {
                 String::from("Your mother"),
             ]
         );
+    }
+
+    #[test]
+    fn check_command_substitution() { //* This test fails
+        let mut shell = Shell::new();
+        let command = String::from("`echo hello`");
+        assert_eq!(
+            substitute_commands(&mut shell, command).unwrap(),
+            String::from("hello")
+        )
     }
 }

@@ -7,25 +7,35 @@ use crate::types::{
     JobStatus,
     ParseError,
     ParseResult,
+    TokenizeResult,
 };
-
-pub enum TokenizeResult {
-    UnmatchedDQuote,
-    UnmatchedSQuote,
-    EndsOnOr,
-    EndsOnAnd,
-    EndsOnPipe,
-    EmptyCommand,
-    Good(Vec<Token>),
-}
+use crate::shell::{
+    Shell,
+    substitute_commands
+};
 
 pub struct Lexer;
 
 impl Lexer {
 
     /// Tokenizes the &str into a Vec of tokens
-    pub fn tokenize<'a>(line: &'a str) -> TokenizeResult {
-        let mut line_iter = line.chars().peekable();
+    pub fn tokenize<'a>(shell: &mut Shell, line: String, sub: bool) -> TokenizeResult {
+        let to_parse: String;
+        if !sub {
+            match substitute_commands(shell, line.to_string()) {
+                Ok(string) => {
+                    to_parse = string;
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    return TokenizeResult::EmptyCommand;
+                }
+            }
+        } else {
+            to_parse = line;
+        }
+
+        let mut line_iter = to_parse.chars().peekable();
 
         //Accumulators
         let mut tokenvec = Vec::<Token>::new();
