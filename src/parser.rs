@@ -11,7 +11,8 @@ use crate::types::{
 };
 use crate::shell::{
     Shell,
-    substitute_commands
+    substitute_commands,
+    needs_substitution,
 };
 
 pub struct Lexer;
@@ -21,7 +22,7 @@ impl Lexer {
     /// Tokenizes the &str into a Vec of tokens
     pub fn tokenize<'a>(shell: &mut Shell, line: String, sub: bool) -> TokenizeResult {
         let to_parse: String;
-        if !sub {
+        if !sub && needs_substitution(&line) {
             match substitute_commands(shell, line.to_string()) {
                 Ok(string) => {
                     to_parse = string;
