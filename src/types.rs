@@ -4,6 +4,55 @@ use std::process;
 
 pub type ParseResult = Result<Vec<Job>, ParseError>;
 
+pub enum TokenizeResult {
+    UnmatchedDQuote,
+    UnmatchedSQuote,
+    EndsOnOr,
+    EndsOnAnd,
+    EndsOnPipe,
+    EmptyCommand,
+    Good(Vec<Token>),
+}
+
+impl fmt::Display for TokenizeResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TokenizeResult::UnmatchedDQuote => {
+                write!(f, "dquote>")
+            }
+            TokenizeResult::UnmatchedSQuote => {
+                write!(f, "quote>" )
+            }
+            TokenizeResult::EndsOnAnd => {
+                write!(f, "cmdand>")
+            }
+            TokenizeResult::EndsOnOr => {
+                write!(f, "cmdor>" )
+            }
+            TokenizeResult::EndsOnPipe => {
+                write!(f, "pipe>"  )
+            }
+            TokenizeResult::EmptyCommand => {
+                write!(f, "")
+            }
+            TokenizeResult::Good(_) => {
+                write!(f, "")
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CmdSubError;
+
+impl std::error::Error for CmdSubError {}
+
+impl fmt::Display for CmdSubError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "oyster: parse error in command substitution")
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ParseError {
     PipeMismatch,
@@ -87,6 +136,7 @@ pub enum JobStatus {
     Terminated,
 }
 
+#[derive(Debug, Clone)]
 pub struct CommandParams {
     pub isatty: bool,
     pub background: bool,
