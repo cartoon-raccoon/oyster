@@ -168,19 +168,16 @@ pub fn replace_aliases(shell: &Shell, tokens: &mut Vec<String>) {
 }
 
 pub fn needs_substitution(test: &str) -> bool {
-    let re_backtick = Regex::new(r"`[ >&|\-a-zA-Z0-9]+`").unwrap();
-    let re_parenths = Regex::new(r"\$\([ >&|\-a-zA-Z0-9]+\)").unwrap();
-
-    println!("{}", re_backtick.is_match(test));
-    println!("{}", re_parenths.is_match(test));
+    let re_backtick = Regex::new("`[ >&|\\-a-zA-Z0-9\"']+`").unwrap();
+    let re_parenths = Regex::new("\\$\\([ >&|\\-a-zA-Z0-9\"']+\\)").unwrap();
 
     re_backtick.is_match(test) || re_parenths.is_match(test)
 }
 
 // This command is gonna be sooo fucking slow
 pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<String, CmdSubError> {
-    let re_backtick = Regex::new(r"`[ >&|\-a-zA-Z0-9]+`").unwrap();
-    let re_parenths = Regex::new(r"\$\([ >&|\-a-zA-Z0-9]+\)").unwrap();
+    let re_backtick = Regex::new("`[ >&|\\-a-zA-Z0-9\"']+`").unwrap();
+    let re_parenths = Regex::new("\\$\\([ >&|\\-a-zA-Z0-9\"']+\\)").unwrap();
     let mut outputs = Vec::<String>::new();
     if let Some(bt_captures) = re_backtick.captures(&string) {
         println!("command matched");

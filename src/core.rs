@@ -209,6 +209,7 @@ fn run_command(
                 }
             }
 
+            //TODO: Fix this: stdout not redirecting properly
             if idx == pipes_count && params.capture_output {
                 if !stdout_redirected {
                     close(fds_capture_stdout.0).unwrap_or_exit(PIPE_END_CLOSE_ERR, 4);
@@ -222,11 +223,7 @@ fn run_command(
                 // }
             }
 
-            //TODO 1: Handle redirects
-
             //TODO 2: Check for builtin commands
-
-            //TODO 3: Redirecting output to output capture
 
             //TODO: Load in env vars
             //TODO: Search in path
