@@ -29,7 +29,7 @@ Autocompletion
 job control
 bash script interpretation
 shell expansions
-    -> $(command) || `command`
+    -> $(command) || `command` (FIXME)
     -> $variable
     -> ~ to home dir
     -> - (when used with cd) to previous dir
