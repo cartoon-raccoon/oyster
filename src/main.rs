@@ -13,7 +13,7 @@ use std::env;
 use nix::sys::signal::{signal, Signal, SigHandler,};
 
 use parser::Lexer;
-use parser::TokenizeResult::*;
+use types::TokenizeResult::*;
 use execute::*;
 use shell::Shell;
 
@@ -44,28 +44,17 @@ fn main() -> Result<(), Box<dyn Error>> {
             if buffer.trim() == "exit" {
                 process::exit(0);
             }
-            match Lexer::tokenize(buffer.as_str().trim()) {
-                UnmatchedDQuote => {
-                    print!("dquote> "); io::stdout().flush().unwrap();
-                }
-                UnmatchedSQuote => {
-                    print!("squote> "); io::stdout().flush().unwrap();
-                }
-                EndsOnAnd => {
-                    print!("cmdand> "); io::stdout().flush().unwrap();
-                }
-                EndsOnOr => {
-                    print!("cmdor> "); io::stdout().flush().unwrap();
-                }
-                EndsOnPipe => {
-                    print!("pipe> "); io::stdout().flush().unwrap();
+            match Lexer::tokenize(&mut shell, buffer.trim().to_string(), false) {
+                n@ UnmatchedDQuote | n@ UnmatchedSQuote |
+                n@ EndsOnAnd | n@ EndsOnOr | n@ EndsOnPipe => {
+                    print!("{} ", n); io::stdout().flush().unwrap();
                 }
                 EmptyCommand => {
                     break;
                 }
                 Good(parsedtokens) => {
-                    match execute_jobs(&mut shell, parsedtokens) {
-                        Ok(()) => {}
+                    match execute_jobs(&mut shell, parsedtokens, false) {
+                        Ok(_result) => {}
                         Err(e) => {
                             eprintln!("{}", e.to_string());
                         }
