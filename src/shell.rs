@@ -26,7 +26,6 @@ use crate::execute;
 use crate::parser::Lexer;
 use crate::types::{
     CmdSubError,
-    ParseError,
     TokenizeResult::*
 };
 
@@ -90,8 +89,8 @@ impl Shell {
         }
     }
     /// Adds a variable to the shell.
-    pub fn add_variable(&mut self, key: String, value: String) {
-        self.vars.insert(key, value);
+    pub fn add_variable(&mut self, key: &str, value: &str) {
+        self.vars.insert(key.to_string(), value.to_string());
     }
     pub fn get_variable(&self, key: &str) -> Option<String> {
         if let Some(entry) = self.vars.get(key) {
@@ -146,6 +145,17 @@ pub fn create_fd_from_file(dest: &str, to_append: bool) -> i32 {
 //expand vars
 //expand commands
 
+///Only assigns variables if it is the first word in the command.
+pub fn assign_variables(shell: &mut Shell, string: &mut String) -> bool {
+    let re = Regex::new(r"[a-zA-Z0-9]+=.+").unwrap();
+    if re.is_match(string) {
+        let key_value: Vec<&str> = string.split("=").collect();
+        shell.add_variable(key_value[0], key_value[1]);
+        return true;
+    }
+    false
+}
+
 pub fn expand_tilde(string: &mut String) {
     if string.starts_with("~") {
         let home = env::var("HOME").unwrap_or(String::new());
@@ -157,13 +167,13 @@ pub fn expand_tilde(string: &mut String) {
     }
 }
 
-//TODO: Command expansion, file globbing, tilde and env expansion
+//TODO: file globbing, env expansion
+
 pub fn expand_variables(shell: &Shell, string: &mut String) {
     let re = Regex::new(r"\$[a-zA-Z]*").unwrap();
     for capture in re.captures_iter(&string.clone()) {
         if let Some(capture) = capture.get(0) {
-            if let Some(var) = shell.get_variable(capture.as_str()) {
-                println!("{}", var);
+            if let Some(var) = shell.get_variable(&capture.as_str()[1..]) {
                 *string = string.replace(capture.as_str(), var.as_str());
             } else {
                 *string = string.replace(capture.as_str(), "");
@@ -198,7 +208,7 @@ pub fn needs_substitution(test: &str) -> bool {
 // This command is gonna be sooo fucking slow
 pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<String, CmdSubError> {
     let re_backtick = Regex::new("`[ >&|\\-a-zA-Z0-9\"']+`").unwrap();
-    let re_parenths = Regex::new("\\$\\([ >&|\\-a-zA-Z0-9\"']+\\)").unwrap();
+    //let re_parenths = Regex::new("\\$\\([ >&|\\-a-zA-Z0-9\"']+\\)").unwrap();
     let mut outputs = Vec::<String>::new();
     if let Some(bt_captures) = re_backtick.captures(&string) {
         println!("command matched");
@@ -252,8 +262,8 @@ mod tests {
     #[test]
     fn check_expand_vars() {
         let mut shell = Shell::new();
-        shell.add_variable(String::from("$hello"), String::from("wassup"));
-        shell.add_variable(String::from("$what"), String::from("is this"));
+        shell.add_variable("hello", "wassup");
+        shell.add_variable("what", "is this");
         let mut test = String::from("goodbye $hello i know you $what $wontwork");
         expand_variables(&shell, &mut test);
         assert_eq!(
@@ -335,5 +345,25 @@ mod tests {
         assert!(needs_substitution(command1));
         assert!(!needs_substitution(command2));
         assert!(needs_substitution(command3));
+    }
+
+    #[test]
+    fn check_variable_assignment() {
+        let mut shell = Shell::new();
+        let mut string = String::from("wassup=hello");
+        let mut string2 = String::from("what=is this");
+        let mut fail = String::from("hello i am stupid");
+        assert!(assign_variables(
+            &mut shell,
+            &mut string,
+        ));
+        assert!(assign_variables(
+            &mut shell, 
+            &mut string2,
+        ));
+        assert!(!assign_variables(
+            &mut shell,
+            &mut fail,
+        ));
     }
 }

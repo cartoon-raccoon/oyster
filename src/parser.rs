@@ -15,6 +15,7 @@ use crate::shell::{
     needs_substitution,
     expand_variables,
     expand_tilde,
+    replace_aliases,
 };
 
 pub struct Lexer;
@@ -391,6 +392,7 @@ impl Lexer {
                         if buffer.len() < 1 {
                             return Err(ParseError::EmptyCommand);
                         } else {
+                            replace_aliases(shell, &mut buffer);
                             cmds.push(
                                 Cmd {
                                     cmd: buffer[0].clone(),
@@ -482,6 +484,7 @@ impl Lexer {
             if buffer.len() < 1 {
                 return Err(ParseError::EmptyCommand);
             } else {
+                replace_aliases(shell, &mut buffer);
                 cmds.push(
                     Cmd {
                         cmd: buffer[0].clone(),

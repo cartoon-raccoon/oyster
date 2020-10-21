@@ -5,8 +5,13 @@ use nix::unistd::getpgid;
 use crate::types::{Token, Job, Exec, CommandResult};
 use crate::parser::Lexer;
 use crate::core;
-use crate::shell::{self, Shell};
-use crate::builtins::cd;
+use crate::shell::{
+    self, Shell
+};
+use crate::builtins::{
+    cd,
+    set,
+};
 
 /// High level control of all jobs. Conditional execution is handled here.
 /// Parses tokens into jobs, performs expansion and executes them.
@@ -17,6 +22,7 @@ pub fn execute_jobs(
 ) -> Result<(i32, String), Box<dyn Error>> {
     
     let jobs = Lexer::parse_tokens(shell, tokens)?;
+    //println!("{:?}", jobs);
 
     let mut captured = String::new();
     let mut execif: Option<Exec>;
@@ -72,7 +78,10 @@ pub fn execute(
 ) -> Result<CommandResult, Box<dyn Error>> {
 
     if job.cmds.len() == 1 { //no pipeline
-        let cmd = job.cmds[0].clone();
+        let mut cmd = job.cmds[0].clone();
+        if shell::assign_variables(shell, &mut cmd.cmd) {
+            return Ok(CommandResult::new());
+        }
         match cmd.cmd.as_str() {
             "cd" => {
                 let status = cd::run(shell, cmd);
@@ -85,7 +94,8 @@ pub fn execute(
 
             }
             "set" => {
-
+                let status = set::run(shell, cmd);
+                return Ok(CommandResult::from_status(status));
             }
             "which" => {
             }
