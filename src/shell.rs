@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::fs::OpenOptions;
 use std::os::unix::io::IntoRawFd;
+use std::env;
 
 use regex::Regex;
 
@@ -36,6 +37,7 @@ pub struct Shell {
     pub env: HashMap<String, String>,
     vars: HashMap<String, String>,
     current_dir: PathBuf,
+    prev_dir: PathBuf,
     pgid: i32,
     pub is_login: bool,
 }
@@ -48,9 +50,16 @@ impl Shell {
             env: HashMap::new(),
             vars: HashMap::new(),
             current_dir: PathBuf::new(),
+            prev_dir: PathBuf::new(),
             pgid: 0,
             is_login: false,
         }
+    }
+    pub fn set_prev_dir(&mut self, path: String) {
+        self.prev_dir = PathBuf::from(path);
+    }
+    pub fn set_current_dir(&mut self, path: String) {
+        self.current_dir = PathBuf::from(path);
     }
     /// Adds a job to the shell to track.
     pub fn add_job(&mut self, job: Job) {
@@ -137,15 +146,27 @@ pub fn create_fd_from_file(dest: &str, to_append: bool) -> i32 {
 //expand vars
 //expand commands
 
+pub fn expand_tilde(string: &mut String) {
+    if string.starts_with("~") {
+        let home = env::var("HOME").unwrap_or(String::new());
+        if home.is_empty() {
+            eprintln!("oyster: env error, could not expand tilde");
+            return;
+        }
+        *string = string.replace("~", home.as_str());
+    }
+}
+
 //TODO: Command expansion, file globbing, tilde and env expansion
-pub fn expand_variables(shell: &Shell, tokens: &mut Vec<String>) {
+pub fn expand_variables(shell: &Shell, string: &mut String) {
     let re = Regex::new(r"\$[a-zA-Z]*").unwrap();
-    for token in tokens {
-        if re.is_match(&token) {
-            if let Some(string) = shell.get_variable(&token) {
-                *token = string;
+    for capture in re.captures_iter(&string.clone()) {
+        if let Some(capture) = capture.get(0) {
+            if let Some(var) = shell.get_variable(capture.as_str()) {
+                println!("{}", var);
+                *string = string.replace(capture.as_str(), var.as_str());
             } else {
-                *token = String::from("");
+                *string = string.replace(capture.as_str(), "");
             }
         }
     }
@@ -233,23 +254,11 @@ mod tests {
         let mut shell = Shell::new();
         shell.add_variable(String::from("$hello"), String::from("wassup"));
         shell.add_variable(String::from("$what"), String::from("is this"));
-        let mut test_vec = vec![
-            String::from("goodbye"), 
-            String::from("$hello"),
-            String::from("i know you"),
-            String::from("$what"),
-            String::from("$wontwork"),
-        ];
-        expand_variables(&shell, &mut test_vec);
+        let mut test = String::from("goodbye $hello i know you $what $wontwork");
+        expand_variables(&shell, &mut test);
         assert_eq!(
-            test_vec,
-            vec![
-                String::from("goodbye"),
-                String::from("wassup"),
-                String::from("i know you"),
-                String::from("is this"),
-                String::from(""),
-            ]
+            test,
+            String::from("goodbye wassup i know you is this ")
         );
     }
 

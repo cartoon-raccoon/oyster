@@ -13,6 +13,8 @@ use crate::shell::{
     Shell,
     substitute_commands,
     needs_substitution,
+    expand_variables,
+    expand_tilde,
 };
 
 pub struct Lexer;
@@ -261,7 +263,7 @@ impl Lexer {
     /// Splits command and parses special characters
     
     //TODO: Add variable expansion and command expansion
-    pub fn parse_tokens(tokens: Vec<Token>) -> ParseResult {
+    pub fn parse_tokens(shell: &mut Shell, tokens: Vec<Token>) -> ParseResult {
 
         let mut job_id = 1;
         let mut commandmap = Vec::<Vec<Token>>::new();
@@ -401,10 +403,13 @@ impl Lexer {
                             buffer.clear();
                         }
                     }
-                    Token::Word(string) | 
-                    Token::SQuote(string) | 
-                    Token::DQuote(string)=> {
-                        //TODO: Perform expansion here
+                    Token::Word(mut string) | 
+                    Token::DQuote(mut string)=> {
+                        expand_tilde(&mut string);
+                        expand_variables(shell, &mut string);
+                        buffer.push(string);
+                    }
+                    Token::SQuote(string) => {
                         buffer.push(string);
                     }
                     rd @ Token::Redirect |
