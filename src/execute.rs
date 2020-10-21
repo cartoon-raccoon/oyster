@@ -11,6 +11,7 @@ use crate::shell::{
 use crate::builtins::{
     cd,
     set,
+    alias,
 };
 
 /// High level control of all jobs. Conditional execution is handled here.
@@ -88,10 +89,12 @@ pub fn execute(
                 return Ok(CommandResult::from_status(status));
             }
             "alias" => {
-                
+                let status = alias::set(shell, cmd);
+                return Ok(CommandResult::from_status(status));
             }
             "unalias" => {
-
+                let status = alias::unset(shell, cmd);
+                return Ok(CommandResult::from_status(status));
             }
             "set" => {
                 let status = set::run(shell, cmd);

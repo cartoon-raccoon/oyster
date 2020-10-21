@@ -70,13 +70,17 @@ impl Shell {
     }
     /// Called by the alias builtin.
     /// Adds an alias to the shell.
-    pub fn add_alias(&mut self, key: String, value: String) {
-        self.aliases.insert(key, value);
+    pub fn add_alias(&mut self, key: &str, value: &str) {
+        self.aliases.insert(key.to_string(), value.to_string());
     }
     /// Called by the unalias builtin.
     /// Removes an alias from the shell.
-    pub fn remove_alias(&mut self, key: &str) {
-        self.aliases.remove(key);
+    pub fn remove_alias(&mut self, key: &str) -> Option<String> {
+        self.aliases.remove(key)
+    }
+    /// Tests whether the alias exists.
+    pub fn has_alias(&self, key: &str) -> bool {
+        self.aliases.contains_key(key)
     }
     /// Returns the value of an alias if it exists in the shell.
     /// Normally called internally during alias replacement
@@ -183,19 +187,11 @@ pub fn expand_variables(shell: &Shell, string: &mut String) {
 }
 
 
-//TODO: Find a way to do this cheaper
-pub fn replace_aliases(shell: &Shell, tokens: &mut Vec<String>) {
-    if let Some(string) = shell.get_alias(&tokens[0]) {
-        let replacements: Vec<String> = string.split(" ")
-            .map(|s| s.to_string())
-            .collect();
-        println!("{:?}", replacements);
-        let mut split_off = tokens.split_off(0);
-        split_off.remove(0);
-        tokens.extend(replacements.clone());
-        tokens.extend(split_off);
-        println!("{:?}", tokens);
+pub fn replace_aliases(shell: &Shell, word: String) -> String {
+    if let Some(string) = shell.get_alias(&word) {
+        return string;
     }
+    word
 }
 
 pub fn needs_substitution(test: &str) -> bool {
@@ -276,54 +272,24 @@ mod tests {
     fn check_alias_replacement() {
         let mut shell = Shell::new();
         shell.add_alias(
-            String::from("addpkg"), 
-            String::from("sudo pacman -S")
+            "addpkg",
+            "sudo pacman -S"
         );
         shell.add_alias(
-            String::from("yeet"),
-            String::from("sudo pacman -Rs"),
+            "yeet",
+            "sudo pacman -Rs",
         );
-        let mut test_vec = vec![
-            String::from("addpkg"),
-            String::from("pacman"),
-        ];
-        replace_aliases(&shell, &mut test_vec);
+        let test_string = String::from("addpkg");
+        let new_string = replace_aliases(&shell, test_string);
         assert_eq!(
-            test_vec,
-            vec![
-                String::from("sudo"),
-                String::from("pacman"),
-                String::from("-S"),
-                String::from("pacman"),
-            ]
+            new_string,
+            String::from("sudo pacman -S"),
         );
-        let mut test_vec2 = vec![
-            String::from("yeet"),
-            String::from("pacman"),
-        ];
-        replace_aliases(&shell, &mut test_vec2);
+        let test_string2 = String::from("yeet");
+        let new_string2 = replace_aliases(&shell, test_string2);
         assert_eq!(
-            test_vec2,
-            vec![
-                String::from("sudo"),
-                String::from("pacman"),
-                String::from("-Rs"),
-                String::from("pacman"),
-            ]
-        );
-        let test_vec3 = vec![
-            String::from("cogsy"),
-            String::from("listen"),
-            String::from("Your mother"),
-        ];
-        replace_aliases(&shell, &mut test_vec2);
-        assert_eq!(
-            test_vec3,
-            vec![
-                String::from("cogsy"),
-                String::from("listen"),
-                String::from("Your mother"),
-            ]
+            new_string2,
+            String::from("sudo pacman -Rs")
         );
     }
 

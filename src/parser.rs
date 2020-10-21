@@ -262,8 +262,6 @@ impl Lexer {
     }
 
     /// Splits command and parses special characters
-    
-    //TODO: Add variable expansion and command expansion
     pub fn parse_tokens(shell: &mut Shell, tokens: Vec<Token>) -> ParseResult {
 
         let mut job_id = 1;
@@ -291,7 +289,7 @@ impl Lexer {
         //building job set
         let mut jobs = Vec::<Job>::new();
 
-        for tokengrp in commandmap.clone() {
+        for mut tokengrp in commandmap.clone() {
 
             //* trackers
             let mut all_to_filename = false;
@@ -307,8 +305,32 @@ impl Lexer {
             let mut cmds = Vec::<Cmd>::new();
             let mut execif = None;
             
-            if commandmap[0][0] == Token::Pipe || commandmap[0][0] == Token::Pipe2 {
-                return Err(ParseError::PipeMismatch)
+            match commandmap[0][0] {
+                Token::And => {return Err(ParseError::StartsOnAnd);}
+                Token::Or => {return Err(ParseError::StartsOnOr);}
+                Token::Consec => {return Err(ParseError::StartsOnConsec);}
+                Token::Pipe | Token::Pipe2 => {
+                    return Err(ParseError::PipeMismatch);
+                }
+                _ => {}
+            }
+
+            // alias expansion here, first word in group
+            if let Token::Word(string) = &tokengrp[0] {
+                if shell.has_alias(string) {
+                    let string2 = string.clone();
+                    let mut tail = tokengrp.split_off(0);
+                    tail.remove(0);
+                    let tokens = replace_aliases(shell, string2);
+
+                    //aliasing only works if the alias value is a valid command
+                    //so we don't have to match all cases here
+                    if let TokenizeResult::Good(tokens) = 
+                        Lexer::tokenize(shell, tokens, true) {
+                        tokengrp.extend(tokens);
+                        tokengrp.extend(tail);
+                    }
+                }
             }
             //building each pipeline
             for token in tokengrp {
@@ -392,7 +414,6 @@ impl Lexer {
                         if buffer.len() < 1 {
                             return Err(ParseError::EmptyCommand);
                         } else {
-                            replace_aliases(shell, &mut buffer);
                             cmds.push(
                                 Cmd {
                                     cmd: buffer[0].clone(),
@@ -484,7 +505,6 @@ impl Lexer {
             if buffer.len() < 1 {
                 return Err(ParseError::EmptyCommand);
             } else {
-                replace_aliases(shell, &mut buffer);
                 cmds.push(
                     Cmd {
                         cmd: buffer[0].clone(),
