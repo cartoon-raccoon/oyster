@@ -6,7 +6,7 @@ use crate::types::{Token, Job, Exec, CommandResult};
 use crate::parser::Lexer;
 use crate::core;
 use crate::shell::{self, Shell};
-
+use crate::builtins::cd;
 
 /// High level control of all jobs. Conditional execution is handled here.
 /// Parses tokens into jobs, performs expansion and executes them.
@@ -16,8 +16,7 @@ pub fn execute_jobs(
     capture: bool
 ) -> Result<(i32, String), Box<dyn Error>> {
     
-    let jobs = Lexer::parse_tokens(tokens)?;
-    println!("{:?}", jobs);
+    let jobs = Lexer::parse_tokens(shell, tokens)?;
 
     let mut captured = String::new();
     let mut execif: Option<Exec>;
@@ -73,8 +72,20 @@ pub fn execute(
 ) -> Result<CommandResult, Box<dyn Error>> {
 
     if job.cmds.len() == 1 { //no pipeline
-        match job.cmds[0].cmd.as_str() {
+        let cmd = job.cmds[0].clone();
+        match cmd.cmd.as_str() {
             "cd" => {
+                let status = cd::run(shell, cmd);
+                return Ok(CommandResult::from_status(status));
+            }
+            "alias" => {
+                
+            }
+            "unalias" => {
+
+            }
+            "set" => {
+
             }
             "which" => {
             }
