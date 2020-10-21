@@ -53,13 +53,17 @@ impl fmt::Display for CmdSubError {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
+    StartsOnAnd,
+    StartsOnOr,
+    StartsOnConsec,
     PipeMismatch,
     InvalidFileRD,
     InvalidFileDesc,
     InvalidRDSyntax,
     EmptyCommand,
+    Error(String)
 }
 
 impl std::error::Error for ParseError {}
@@ -67,6 +71,15 @@ impl std::error::Error for ParseError {}
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            ParseError::StartsOnAnd => {
+                write!(f, "error: no command specified before `&&`")
+            }
+            ParseError::StartsOnOr => {
+                write!(f, "error: no command specified before `||`")
+            }
+            ParseError::StartsOnConsec => {
+                write!(f, "error: no command specified before `;`")
+            }
             ParseError::PipeMismatch => {
                 write!(f, "error: pipe mismatch")
             },
@@ -81,6 +94,9 @@ impl fmt::Display for ParseError {
             },
             ParseError::EmptyCommand => {
                 write!(f, "error: empty command")
+            }
+            ParseError::Error(s) => {
+                write!(f, "error: parse error near `{}`", s)
             }
         }
     }
@@ -154,6 +170,13 @@ impl CommandResult {
     pub fn new() -> Self {
         CommandResult {
             status: 0,
+            stdout: String::new(),
+            stderr: String::new(),
+        }
+    }
+    pub fn from_status(status: i32) -> Self {
+        CommandResult {
+            status: status,
             stdout: String::new(),
             stderr: String::new(),
         }
