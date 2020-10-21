@@ -30,10 +30,11 @@ job control
 bash script interpretation
 shell expansions
     -> $(command) || `command` (FIXME)
-    -> $variable
-    -> ~ to home dir
+    -> $variable (done)
+    -> ~ to home dir (done)
     -> - (when used with cd) to previous dir
     -> !! to last command (in editor)
+    -> button.{js, css} to button.js, button.css
     Note: Shell expansions cannot contain redirections
 
 Todo:
