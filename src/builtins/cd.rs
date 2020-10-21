@@ -7,7 +7,7 @@ pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
         eprintln!("cd: too many arguments");
         return 1;
     } else if cmd.args.len() == 1 {
-        eprintln!("cd: not enougb arguments");
+        eprintln!("cd: not enough arguments");
         return 1;
     }
     if cmd.redirects.len() > 0 {
