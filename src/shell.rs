@@ -21,6 +21,7 @@ use nix::sys::signal::{
 use crate::types::{
     Job,
     UnwrapOr,
+    Token,
 };
 use crate::execute;
 use crate::parser::Lexer;
@@ -31,10 +32,10 @@ use crate::types::{
 
 #[derive(Clone, Debug)]
 pub struct Shell {
-    jobs: BTreeMap<i32, Job>,
+    pub jobs: BTreeMap<i32, Job>,
     aliases: HashMap<String, String>,
     pub env: HashMap<String, String>,
-    vars: HashMap<String, String>,
+    pub vars: HashMap<String, String>,
     current_dir: PathBuf,
     prev_dir: PathBuf,
     pgid: i32,
@@ -143,6 +144,19 @@ pub fn create_fd_from_file(dest: &str, to_append: bool) -> i32 {
     file.into_raw_fd()
 }
 
+#[allow(dead_code, unused_variables, unused_mut)]
+pub fn search_in_path() {
+    let mut path: Vec<String> = env::var("PATH")
+        .unwrap_or(String::new())
+        .split(":")
+        .map(|n| n.to_string())
+        .collect();
+    if path.is_empty() {
+        //return error!
+    }
+
+}
+
 //steps:
 //expand aliases
 //expand tilde
@@ -173,13 +187,13 @@ pub fn expand_tilde(string: &mut String) {
 //TODO: file globbing, env expansion
 
 pub fn expand_variables(shell: &Shell, string: &mut String) {
-    let re = Regex::new(r"\$[a-zA-Z]*").unwrap();
+    let re = Regex::new(r"\$[a-zA-Z0-9]+").unwrap();
     for capture in re.captures_iter(&string.clone()) {
         if let Some(capture) = capture.get(0) {
             if let Some(var) = shell.get_variable(&capture.as_str()[1..]) {
-                *string = string.replace(capture.as_str(), var.as_str());
+                *string = string.replacen(capture.as_str(), var.as_str(), 1);
             } else {
-                *string = string.replace(capture.as_str(), "");
+                *string = string.replacen(capture.as_str(), "", 1);
             }
         }
     }
@@ -211,7 +225,7 @@ pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<Stri
             if let Some(cmdmatch) = capture {
                 let mut newstring = cmdmatch.as_str()[1..].to_string();
                 newstring.pop();
-                match Lexer::tokenize(shell, newstring, true) {
+                match Lexer::tokenize(shell, newstring, true).unwrap() {
                     UnmatchedDQuote | UnmatchedSQuote => {
                         eprintln!("oyster: unmatched quote");
                         return Err(CmdSubError);
