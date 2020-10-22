@@ -62,6 +62,7 @@ pub enum ParseError {
     InvalidFileRD,
     InvalidFileDesc,
     InvalidRDSyntax,
+    MetacharsInBrace,
     EmptyCommand,
     Error(String)
 }
@@ -92,6 +93,9 @@ impl fmt::Display for ParseError {
             ParseError::InvalidRDSyntax => {
                 write!(f, "error: invalid redirection syntax")
             },
+            ParseError::MetacharsInBrace => {
+                write!(f, "error: metacharacters in brace")
+            }
             ParseError::EmptyCommand => {
                 write!(f, "error: empty command")
             }
@@ -108,6 +112,7 @@ pub enum Token {
     SQuote(String),
     DQuote(String),
     Tilde(String),
+    Brace(String),
     //Var(String),
     Pipe, //handled!
     Pipe2, //handled!

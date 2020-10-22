@@ -14,6 +14,7 @@ use crate::shell::{
     substitute_commands,
     needs_substitution,
     expand_variables,
+    expand_braces,
     expand_tilde,
     replace_aliases,
 };
@@ -23,7 +24,8 @@ pub struct Lexer;
 impl Lexer {
 
     /// Tokenizes the &str into a Vec of tokens
-    pub fn tokenize<'a>(shell: &mut Shell, line: String, sub: bool) -> TokenizeResult {
+    pub fn tokenize<'a>(shell: &mut Shell, line: String, sub: bool) 
+    -> Result<TokenizeResult, ParseError> {
         let to_parse: String;
         if !sub && needs_substitution(&line) {
             match substitute_commands(shell, line.to_string()) {
@@ -32,7 +34,7 @@ impl Lexer {
                 }
                 Err(e) => {
                     eprintln!("{}", e);
-                    return TokenizeResult::EmptyCommand;
+                    return Ok(TokenizeResult::EmptyCommand);
                 }
             }
         } else {
@@ -50,6 +52,7 @@ impl Lexer {
         //let mut in_var = false;
         let mut in_dquote = false;
         let mut in_squote = false;
+        let mut brace_level = 0;
         let mut escaped = false;
         let mut ignore_next = false;
         let mut prev_char = None;
@@ -93,6 +96,7 @@ impl Lexer {
                 '|' if line_iter.peek() == Some(&'|') 
                     && !escaped 
                     && !in_squote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
                     if !in_dquote {
                         tokenvec.push(Token::Or);
@@ -103,6 +107,7 @@ impl Lexer {
                 '|' if line_iter.peek() == Some(&'&') 
                     && !escaped 
                     && !in_squote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
                     if !in_dquote {
                         tokenvec.push(Token::Pipe2);
@@ -113,6 +118,7 @@ impl Lexer {
                 '|' if line_iter.peek() != Some(&'|') 
                     && !escaped 
                     && !in_squote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
                     if !in_dquote {
                         tokenvec.push(Token::Pipe);
@@ -123,6 +129,7 @@ impl Lexer {
                 '&' if line_iter.peek() == Some(&'&') 
                     && !escaped 
                     && !in_squote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
                     if !in_dquote {
                         tokenvec.push(Token::And);
@@ -133,6 +140,7 @@ impl Lexer {
                 '&' if line_iter.peek() == Some(&'>') 
                     && !escaped 
                     && !in_squote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
                     if !in_dquote {
                         tokenvec.push(Token::RDStdOutErr);
@@ -143,6 +151,7 @@ impl Lexer {
                 '&' if line_iter.peek() != Some(&'&') 
                     && !escaped 
                     && !in_squote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
                     if !in_dquote {
                         if prev_char == Some('>') {
@@ -154,9 +163,23 @@ impl Lexer {
                     }
                     in_tilde = false;
                 },
+                '{' if !escaped && !in_dquote && !in_squote => {
+                    brace_level += 1;
+                    word.push(c);
+                }
+                '}' if !escaped && !in_dquote && !in_squote => {
+                    if brace_level == 0 {return Err(ParseError::Error(String::from("}")))}
+                    brace_level -= 1;
+                    word.push(c);
+                    if brace_level == 0 {
+                        tokenvec.push(Token::Brace(word.clone()));
+                        word.clear();
+                    }
+                }
                 '>' if line_iter.peek() == Some(&'>') 
                     && !escaped 
                     && !in_squote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
                     if !in_dquote {
                         tokenvec.push(Token::RDAppend);
@@ -167,6 +190,7 @@ impl Lexer {
                 '>' if line_iter.peek() == Some(&'&') 
                     && !escaped 
                     && !in_squote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
                     if !in_dquote {
                         tokenvec.push(Token::RDFileDesc);
@@ -177,6 +201,7 @@ impl Lexer {
                 '>' if line_iter.peek() != Some(&'>') 
                     && !escaped 
                     && !in_squote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
                     if !in_dquote {
                         tokenvec.push(Token::Redirect);
@@ -185,10 +210,12 @@ impl Lexer {
                     in_tilde = false;
                 },
                 '~' if !escaped && !in_squote && !in_dquote && prev_char == Some(' ') => {
+                    if brace_level > 0 {return Err(ParseError::Error(String::from("~")))}
                     in_tilde = true;
                     push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
                 }
                 ';' if !escaped && !in_squote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
                     if !in_dquote {
                         tokenvec.push(Token::Consec);
@@ -267,6 +294,8 @@ impl Lexer {
         }
         if in_tilde {
             tokenvec.push(Token::Tilde(word));
+        } else if brace_level > 0 {
+            tokenvec.push(Token::Brace(word));
         } else {
             tokenvec.push(Token::Word(word));
         }
@@ -289,37 +318,39 @@ impl Lexer {
                 }
                 true
             }).collect();
+
+        println!("{:?}", tokenvec);
         
         if in_dquote {
-            return TokenizeResult::UnmatchedDQuote;
+            return Ok(TokenizeResult::UnmatchedDQuote);
         } else if in_squote {
-            return TokenizeResult::UnmatchedSQuote;
+            return Ok(TokenizeResult::UnmatchedSQuote);
         } else {
             match tokenvec.last() {
                 Some(token) => {
                     match *token {
                         Token::Or => {
-                            return TokenizeResult::EndsOnOr;
+                            return Ok(TokenizeResult::EndsOnOr);
                         }
                         Token::And => {
-                            return TokenizeResult::EndsOnAnd;
+                            return Ok(TokenizeResult::EndsOnAnd);
                         }
                         Token::Pipe | Token::Pipe2 => {
-                            return TokenizeResult::EndsOnPipe;
+                            return Ok(TokenizeResult::EndsOnPipe);
                         }
                         _ => {}
                     }
                 }
                 None => {
-                    return TokenizeResult::EmptyCommand;
+                    return Ok(TokenizeResult::EmptyCommand);
                 }
             }
         }
 
         if tokenvec.len() > 0 {
-            TokenizeResult::Good(tokenvec)
+            Ok(TokenizeResult::Good(tokenvec))
         } else {
-            TokenizeResult::EmptyCommand
+            Ok(TokenizeResult::EmptyCommand)
         }
     }
 
@@ -388,7 +419,7 @@ impl Lexer {
                     //aliasing only works if the alias value is a valid command
                     //so we don't have to match all cases here
                     if let TokenizeResult::Good(tokens) = 
-                        Lexer::tokenize(shell, tokens, true) {
+                        Lexer::tokenize(shell, tokens, true).unwrap() {
                         tokengrp.extend(tokens);
                         tokengrp.extend(tail);
                     }
@@ -516,6 +547,10 @@ impl Lexer {
                     }
                     Token::SQuote(string) => {
                         buffer.push(string);
+                    }
+                    Token::Brace(string) => {
+                        let expanded = expand_braces(string);
+                        buffer.extend(expanded);
                     }
                     Token::Tilde(mut string) => {
                         expand_tilde(&mut string);

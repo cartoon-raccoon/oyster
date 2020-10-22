@@ -3,6 +3,7 @@ mod execute;
 mod types;
 mod shell;
 mod core;
+mod jobc;
 mod builtins;
 
 use std::error::Error;
@@ -45,20 +46,28 @@ fn main() -> Result<(), Box<dyn Error>> {
                 process::exit(0);
             }
             match Lexer::tokenize(&mut shell, buffer.trim().to_string(), false) {
-                n@ UnmatchedDQuote | n@ UnmatchedSQuote |
-                n@ EndsOnAnd | n@ EndsOnOr | n@ EndsOnPipe => {
-                    print!("{} ", n); io::stdout().flush().unwrap();
-                }
-                EmptyCommand => {
-                    break;
-                }
-                Good(parsedtokens) => {
-                    match execute_jobs(&mut shell, parsedtokens, false) {
-                        Ok(_result) => {}
-                        Err(e) => {
-                            eprintln!("{}", e.to_string());
+                Ok(result) => {
+                    match result {
+                        n@ UnmatchedDQuote | n@ UnmatchedSQuote |
+                        n@ EndsOnAnd | n@ EndsOnOr | n@ EndsOnPipe => {
+                            print!("{} ", n); io::stdout().flush().unwrap();
+                        }
+                        EmptyCommand => {
+                            break;
+                        }
+                        Good(parsedtokens) => {
+                            match execute_jobs(&mut shell, parsedtokens, false) {
+                                Ok(_result) => {}
+                                Err(e) => {
+                                    eprintln!("{}", e.to_string());
+                                }
+                            }
+                            break;
                         }
                     }
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
                     break;
                 }
             }

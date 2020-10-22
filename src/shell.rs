@@ -184,6 +184,11 @@ pub fn expand_tilde(string: &mut String) {
     *string = home;
 }
 
+//TODO
+pub fn expand_braces(string: String) -> Vec<String> {
+    Vec::new()
+}
+
 //TODO: file globbing, env expansion
 
 pub fn expand_variables(shell: &Shell, string: &mut String) {
