@@ -8,11 +8,7 @@ use crate::core;
 use crate::shell::{
     self, Shell
 };
-use crate::builtins::{
-    cd,
-    set,
-    alias,
-};
+use crate::builtins::*;
 
 /// High level control of all jobs. Conditional execution is handled here.
 /// Parses tokens into jobs, performs expansion and executes them.
@@ -96,7 +92,7 @@ pub fn execute(
                 let status = alias::unset(shell, cmd);
                 return Ok(CommandResult::from_status(status));
             }
-            "set" => {
+            "let" => {
                 let status = set::run(shell, cmd);
                 return Ok(CommandResult::from_status(status));
             }
@@ -107,6 +103,8 @@ pub fn execute(
             "source" => {
             }
             "export" => {
+                let status = export::run(cmd);
+                return Ok(CommandResult::from_status(status));
             }
             "echo" => {
             }
