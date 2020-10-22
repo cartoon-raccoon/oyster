@@ -1,17 +1,11 @@
 Oyster - A shell written in Rust
 
-Fully POSIX-compliant; is essentially a re-implementation of Zsh/Bash in Rust
+Mostly POSIX-compliant; is essentially a re-implementation of Zsh/Bash in Rust
 
 Plans might include to implement a custom scripting language
 
 Other names:
-Oyshter?
-
-Capabilities:
-- Execute bash scripts
-- Call runtimes to execute programs with the appropriate shebang
-- Launch programs and feed them the appropriate arguments (extracting out args enclosed in quotes)
-- Send signals to child processes
+Oyshter? (Ew)
 
 Built-in commands:
 cd 
@@ -45,4 +39,5 @@ Char matching for cursor
     -> Down does nothing
 Break up the token parser function into smaller functions
     for the shell expansion to use part of the functionality
-ERROR HANDLING AAAA
+Fix escaping for $
+Add quote tracking for command substitution
