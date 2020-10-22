@@ -14,7 +14,7 @@ use nix::unistd::{
     isatty,
     fork, 
     pipe, 
-    execve, 
+    execvp, 
     dup, dup2, 
     close,
     ForkResult
@@ -28,9 +28,6 @@ use crate::shell;
 //placeholder - move to job control
 use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
 
-//placeholder imports for bugfixing
-use nix::unistd::execvp;
-
 use crate::types::*;
 use crate::shell::Shell;
 
@@ -42,10 +39,6 @@ pub fn run_pipeline(
     job: Job, 
     background: bool, 
     capture: bool) -> Result<(bool, CommandResult)> {
-    
-    //TODO: Handle expansion logic here
-    //* Command substitution cannot contain redirections:
-    //* Function will return an error if it does
     
     //defaults to return
     let mut term_given = false;
@@ -68,7 +61,7 @@ pub fn run_pipeline(
     let mut idx: usize = 0;
     let mut children = Vec::new();
 
-    for cmd in &job.cmds {
+    for cmd in job.cmds {
 
         let params = CommandParams{
             isatty: isatty,
@@ -86,8 +79,9 @@ pub fn run_pipeline(
             &mut term_given,
             &mut cmdresult,
         )?;
-
-        children.push(childpid);
+        if childpid > 0 && !background {
+            children.push(childpid);
+        }
         idx += 1;
     }
 
@@ -119,7 +113,7 @@ pub fn run_pipeline(
 
 /// This is one deep-ass core function.
 fn run_command(
-    cmd: &Cmd, 
+    cmd: Cmd, 
     idx: usize, 
     pgid: &mut Pid,
     pipes: &Vec<(RawFd, RawFd)>,
@@ -227,10 +221,9 @@ fn run_command(
 
             //TODO: Load in env vars
             //TODO: Search in path
-            let cmdstring = cmd.cmd.clone();
-            let c_cmd = CString::new(cmdstring.as_str())
+            let c_cmd = CString::new(cmd.cmd.as_str())
                 .unwrap_or_exit("oyster: cstring error converting command", 5);
-            let args: Vec<CString> = cmd.args.clone().into_iter()
+            let args: Vec<CString> = cmd.args.into_iter()
                 .map(|arg| {
                     CString::new(arg.as_str())
                         .unwrap_or_exit("oyster: cstring error parsing command arguments", 5)
