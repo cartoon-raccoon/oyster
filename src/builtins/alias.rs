@@ -15,23 +15,30 @@ pub fn set(shell: &mut Shell, cmd: Cmd) -> i32 {
         eprintln!("oyster: bad assignment");
         return 1;
     }
-    if let TokenizeResult::Good(tokens)
-    = Lexer::tokenize(shell, key_value[1].to_string(), true) {
-        match Lexer::parse_tokens(shell, tokens) {
-            Ok(_) => {
-                shell.add_alias(key_value[0], key_value[1]);
-                return 0;
-            }
-            Err(e) => {
-                eprintln!("{}", e);
+    match Lexer::tokenize(shell, key_value[1].to_string(), true) {
+        Ok(result) => {
+            if let TokenizeResult::Good(tokens) = result {
+                match Lexer::parse_tokens(shell, tokens) {
+                    Ok(_) => {
+                        shell.add_alias(key_value[0], key_value[1]);
+                        return 0;
+                    }
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        eprintln!("oyster: bad assignment");
+                        return 1;
+                    }
+                }
+            } else {
                 eprintln!("oyster: bad assignment");
                 return 1;
             }
         }
-    } else {
-        eprintln!("oyster: bad assignment");
-        return 1;
-    }
+        Err(_) => {
+            eprintln!("oyster: bad assignment");
+            return 1;
+        }
+    } 
 }
 
 pub fn unset(shell: &mut Shell, cmd: Cmd) -> i32 {
