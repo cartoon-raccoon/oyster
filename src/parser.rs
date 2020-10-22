@@ -46,6 +46,8 @@ impl Lexer {
         let mut word = String::new();
 
         //Trackers
+        let mut in_tilde = false;
+        //let mut in_var = false;
         let mut in_dquote = false;
         let mut in_squote = false;
         let mut escaped = false;
@@ -56,9 +58,14 @@ impl Lexer {
                     charvec: &mut String,
                     character: char,
                     in_double_quotes: bool,
-                    in_single_quotes: bool,| {
+                    in_single_quotes: bool,
+                    in_tilde: bool| {
             if !in_double_quotes && !in_single_quotes {
-                elements.push(Token::Word(charvec.clone()));
+                if in_tilde {
+                    elements.push(Token::Tilde(charvec.clone()));
+                } else {
+                    elements.push(Token::Word(charvec.clone()));
+                }
                 charvec.clear();
             } else {
                 charvec.push(character)
@@ -83,44 +90,61 @@ impl Lexer {
                 continue;
             }
             match c {
-                '|' if line_iter.peek() == Some(&'|') && !escaped => {
-                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote);
-                    if !in_dquote && !in_squote {
+                '|' if line_iter.peek() == Some(&'|') 
+                    && !escaped 
+                    && !in_squote => {
+                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
+                    if !in_dquote {
                         tokenvec.push(Token::Or);
                         ignore_next = true;
                     }
+                    in_tilde = false;
                 },
-                '|' if line_iter.peek() == Some(&'&') && !escaped => {
-                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote);
-                    if !in_dquote && !in_squote {
+                '|' if line_iter.peek() == Some(&'&') 
+                    && !escaped 
+                    && !in_squote => {
+                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
+                    if !in_dquote {
                         tokenvec.push(Token::Pipe2);
                         ignore_next = true;
                     }
+                    in_tilde = false;
                 },
-                '|' if line_iter.peek() != Some(&'|') && !escaped => {
-                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote);
-                    if !in_dquote && !in_squote {
+                '|' if line_iter.peek() != Some(&'|') 
+                    && !escaped 
+                    && !in_squote => {
+                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
+                    if !in_dquote {
                         tokenvec.push(Token::Pipe);
                         ignore_next = false;
                     }
+                    in_tilde = false;
                 },
-                '&' if line_iter.peek() == Some(&'&') && !escaped => {
-                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote);
-                    if !in_dquote && !in_squote {
+                '&' if line_iter.peek() == Some(&'&') 
+                    && !escaped 
+                    && !in_squote => {
+                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
+                    if !in_dquote {
                         tokenvec.push(Token::And);
                         ignore_next = true;
                     }
+                    in_tilde = false;
                 },
-                '&' if line_iter.peek() == Some(&'>') && !escaped => {
-                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote);
-                    if !in_dquote && !in_squote {
+                '&' if line_iter.peek() == Some(&'>') 
+                    && !escaped 
+                    && !in_squote => {
+                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
+                    if !in_dquote {
                         tokenvec.push(Token::RDStdOutErr);
                         ignore_next = true;
                     }
+                    in_tilde = false;
                 }
-                '&' if line_iter.peek() != Some(&'&') && !escaped => {
-                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote);
-                    if !in_dquote && !in_squote {
+                '&' if line_iter.peek() != Some(&'&') 
+                    && !escaped 
+                    && !in_squote => {
+                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
+                    if !in_dquote {
                         if prev_char == Some('>') {
                             tokenvec.push(Token::FileMarker);
                         } else {
@@ -128,40 +152,61 @@ impl Lexer {
                         }
                         ignore_next = false;
                     }
+                    in_tilde = false;
                 },
-                '>' if line_iter.peek() == Some(&'>') && !escaped => {
-                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote);
-                    if !in_dquote && !in_squote {
+                '>' if line_iter.peek() == Some(&'>') 
+                    && !escaped 
+                    && !in_squote => {
+                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
+                    if !in_dquote {
                         tokenvec.push(Token::RDAppend);
                         ignore_next = true;
                     }
+                    in_tilde = false;
                 },
-                '>' if line_iter.peek() == Some(&'&') && !escaped => {
-                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote);
-                    if !in_dquote && !in_squote {
+                '>' if line_iter.peek() == Some(&'&') 
+                    && !escaped 
+                    && !in_squote => {
+                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
+                    if !in_dquote {
                         tokenvec.push(Token::RDFileDesc);
                         ignore_next = true;
                     }
+                    in_tilde = false;
                 }
-                '>' if line_iter.peek() != Some(&'>') && !escaped => {
-                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote);
-                    if !in_dquote && !in_squote {
+                '>' if line_iter.peek() != Some(&'>') 
+                    && !escaped 
+                    && !in_squote => {
+                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
+                    if !in_dquote {
                         tokenvec.push(Token::Redirect);
                         ignore_next = false;
                     }
+                    in_tilde = false;
                 },
-                ';' if !escaped => {
-                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote);
-                    if !in_dquote && !in_squote {
+                '~' if !escaped && !in_squote && !in_dquote && prev_char == Some(' ') => {
+                    in_tilde = true;
+                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
+                }
+                ';' if !escaped && !in_squote => {
+                    push(&mut tokenvec, &mut word, c, in_dquote, in_squote, in_tilde);
+                    if !in_dquote {
                         tokenvec.push(Token::Consec);
                         ignore_next = false;
                     }
+                    in_tilde = false;
                 }
                 '\'' if !escaped => {
                     ignore_next = false;
                     if in_squote && !in_dquote  {
                         in_squote = false;
-                        tokenvec.push(Token::SQuote(word.clone()));
+                        if in_tilde {
+                            tokenvec.push(Token::Tilde(word.clone()));
+                            in_tilde = false;
+                        }
+                        else {
+                            tokenvec.push(Token::SQuote(word.clone()));
+                        }
                         word.clear();
                     } else if in_dquote {
                         word.push(c);
@@ -169,19 +214,22 @@ impl Lexer {
                         in_squote = true;
                     }
                 }
-                '"' if !escaped => {
+                '"' if !escaped && !in_squote => {
                     ignore_next = false;
                     if in_dquote && !in_squote {
                         in_dquote = false;
-                        tokenvec.push(Token::DQuote(word.clone()));
+                        if in_tilde {
+                            tokenvec.push(Token::Tilde(word.clone()));
+                            in_tilde = false;
+                        } else {
+                            tokenvec.push(Token::DQuote(word.clone()));
+                        }
                         word.clear();
-                    } else if in_squote {
-                        word.push(c);
                     } else {
                         in_dquote = true;
                     }
                 }
-                '\\' if !escaped => {
+                '\\' if !escaped && !in_squote => {
                     if in_squote {
                         word.push(c);
                     } else {
@@ -190,15 +238,20 @@ impl Lexer {
                         continue;
                     }
                 }
-                ' ' => {
+                ' ' if !in_squote => {
                     ignore_next = false;
                     if prev_char != Some(' ') {
-                        if !in_dquote && !in_squote && !escaped {
-                            tokenvec.push(Token::Word(word.clone())); 
+                        if !in_dquote && !escaped {
+                            if in_tilde {
+                                tokenvec.push(Token::Tilde(word.clone()));
+                                in_tilde = false;
+                            } else {
+                                tokenvec.push(Token::Word(word.clone())); 
+                            }
                             word.clear();
                         } else {
                         word.push(c);
-                        }   
+                        }
                     }
                     if escaped {
                         escaped = false;
@@ -212,13 +265,22 @@ impl Lexer {
             }
             prev_char = Some(c)
         }
-
-        tokenvec.push(Token::Word(word));
+        if in_tilde {
+            tokenvec.push(Token::Tilde(word));
+        } else {
+            tokenvec.push(Token::Word(word));
+        }
 
         // filtering empty words
         let tokenvec: Vec<Token> = tokenvec.into_iter()
             .filter(|token| {
                 if let Token::Word(word) = token {
+                    if word == "" {
+                        return false
+                    } else {
+                        return true
+                    }
+                } else if let Token::Tilde(word) = token {
                     if word == "" {
                         return false
                     } else {
@@ -353,6 +415,13 @@ impl Lexer {
                             rd_to_filename = false;
                             continue;
                         }
+                        Token::Tilde(mut dest) => {
+                            expand_tilde(&mut dest);
+                            redirect[2] = dest;
+                            redirects.push(redirect.clone());
+                            rd_to_filename = false;
+                            continue;
+                        }
                         _ => { //* FIXME: Does not account for cases like:
                                //* 2>>&1 (In zsh this appends stderr to a file called 1)
                             return Err(ParseError::InvalidFileRD);
@@ -374,6 +443,9 @@ impl Lexer {
                             rd_to_filedesc = false;
                             continue;
                         }
+                        Token::Tilde(_) => {
+                            return Err(ParseError::InvalidFileDesc);
+                        }
                         _ => {
                             return Err(ParseError::InvalidFileRD);
                         }
@@ -384,6 +456,17 @@ impl Lexer {
                         Token::Word(dest) | 
                         Token::DQuote(dest) | 
                         Token::SQuote(dest) => {
+                            redirects.push([String::from("1"), 
+                                            String::from(">"), 
+                                            String::from(dest.clone())]);
+                            redirects.push([String::from("2"),
+                                            String::from(">"),
+                                            String::from(dest)]);
+                            all_to_filename = false;
+                            continue;
+                        }
+                        Token::Tilde(mut dest) => {
+                            expand_tilde(&mut dest);
                             redirects.push([String::from("1"), 
                                             String::from(">"), 
                                             String::from(dest.clone())]);
@@ -428,11 +511,15 @@ impl Lexer {
                     }
                     Token::Word(mut string) | 
                     Token::DQuote(mut string)=> {
-                        expand_tilde(&mut string);
                         expand_variables(shell, &mut string);
                         buffer.push(string);
                     }
                     Token::SQuote(string) => {
+                        buffer.push(string);
+                    }
+                    Token::Tilde(mut string) => {
+                        expand_tilde(&mut string);
+                        expand_variables(shell, &mut string);
                         buffer.push(string);
                     }
                     rd @ Token::Redirect |

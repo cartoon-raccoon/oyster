@@ -107,6 +107,8 @@ pub enum Token {
     Word(String),
     SQuote(String),
     DQuote(String),
+    Tilde(String),
+    //Var(String),
     Pipe, //handled!
     Pipe2, //handled!
     And, //handled!

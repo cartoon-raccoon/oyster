@@ -160,15 +160,14 @@ pub fn assign_variables(shell: &mut Shell, string: &mut String) -> bool {
     false
 }
 
-pub fn expand_tilde(string: &mut String) {
-    if string.starts_with("~") {
-        let home = env::var("HOME").unwrap_or(String::new());
-        if home.is_empty() {
-            eprintln!("oyster: env error, could not expand tilde");
-            return;
-        }
-        *string = string.replace("~", home.as_str());
+pub fn expand_tilde(string: &mut String) {  
+    let mut home = env::var("HOME").unwrap_or(String::new());
+    if home.is_empty() {
+        eprintln!("oyster: env error, could not expand tilde");
+        return;
     }
+    home.push_str(string);
+    *string = home;
 }
 
 //TODO: file globbing, env expansion
