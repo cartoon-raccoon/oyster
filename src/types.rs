@@ -63,6 +63,7 @@ pub enum ParseError {
     InvalidFileDesc,
     InvalidRDSyntax,
     MetacharsInBrace,
+    BraceMismatch,
     EmptyCommand,
     Error(String)
 }
@@ -95,6 +96,9 @@ impl fmt::Display for ParseError {
             },
             ParseError::MetacharsInBrace => {
                 write!(f, "error: metacharacters in brace")
+            }
+            ParseError::BraceMismatch => {
+                write!(f, "error: brace mismatch")
             }
             ParseError::EmptyCommand => {
                 write!(f, "error: empty command")
