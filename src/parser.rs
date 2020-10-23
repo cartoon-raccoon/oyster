@@ -4,7 +4,6 @@ use crate::types::{
     Token,
     Cmd,
     Job,
-    JobStatus,
     ParseError,
     ParseResult,
     TokenizeResult,
@@ -415,7 +414,9 @@ impl Lexer {
                 }
             }
         }
-        commandmap.push(buffer);
+        if buffer.len() > 0 {
+            commandmap.push(buffer);
+        }
 
         //building job set
         let mut jobs = Vec::<Job>::new();
@@ -681,8 +682,6 @@ impl Lexer {
                     cmds: cmds,
                     execnext: execif,
                     id: job_id,
-                    pgid: 0,
-                    status: JobStatus::InProgress,
                 }
             );
             job_id += 1;
