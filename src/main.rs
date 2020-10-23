@@ -21,7 +21,6 @@ use shell::Shell;
 const PROMPT: &'static str = ">>>>>";
 
 fn main() -> Result<(), Box<dyn Error>> {
-    //TODO: Check if login shell
     unsafe {
         signal(Signal::SIGINT, SigHandler::SigIgn)?;
         signal(Signal::SIGQUIT, SigHandler::SigIgn)?;
@@ -34,6 +33,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     
     loop {
+        jobc::try_wait_bg_jobs(&mut shell);
         print!("{} ", PROMPT); io::stdout().flush().unwrap();
         let mut buffer = String::new();
 

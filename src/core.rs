@@ -23,13 +23,9 @@ use nix::Result;
 use nix::Error;
 use nix::errno::Errno;
 
-use crate::shell;
-
-//placeholder - move to job control
-use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
-
 use crate::types::*;
-use crate::shell::Shell;
+use crate::jobc;
+use crate::shell::{self, Shell};
 
 /// Even lower level, it deconstructs the job
 /// and passes raw parameters to the final function.
@@ -71,11 +67,13 @@ pub fn run_pipeline(
         };
 
         let childpid = run_command(
+            job.id,
             cmd, 
             idx, 
             &mut pgid,
             &pipes,
             params,
+            shell,
             &mut term_given,
             &mut cmdresult,
         )?;
@@ -85,39 +83,43 @@ pub fn run_pipeline(
         idx += 1;
     }
 
-    //placeholder code - waiting will be moved to job control
+    let mut status: i32 = 0;
     for childpid in children {
-        match waitpid(Pid::from_raw(childpid), Some(WaitPidFlag::WUNTRACED))? {
-            WaitStatus::Exited(_pid, status) => {
-                cmdresult.status = status;
-            }
-            WaitStatus::Signaled(pid, signal, cd) => {
-                println!("process {} was signaled by {}: coredump? {}", pid, signal, cd);
-            }
-            WaitStatus::Stopped(pid, signal) => {
-                println!("process {} was stopped by {}", pid, signal);
-            }
-            status @ _ => {
-                println!("process {} has status {:?}", childpid, status);
-            }
-        }
+        status = jobc::wait_on_job(
+            shell, 
+            pgid, 
+            Pid::from_raw(childpid), 
+            true
+        );
+        cmdresult.status = status;
     }
-
+    
     for pipe in pipes {
         close(pipe.0)?;
         close(pipe.1)?;
     }
 
+    if background {
+        if let Some(job) = shell.get_job_by_pgid(pgid) {
+            eprintln!("[{}] {} {}", job.id, job.pgid, job.firstcmd);
+        }
+    }
+    
+    if status == STOPPED {
+        jobc::mark_job_as_stopped(shell, job.id);
+    }
     Ok((term_given, cmdresult))
 }
 
 /// This is one deep-ass core function.
 fn run_command(
+    id: i32,
     cmd: Cmd, 
     idx: usize, 
     pgid: &mut Pid,
     pipes: &Vec<(RawFd, RawFd)>,
     params: CommandParams,
+    shell: &mut Shell,
     term_given: &mut bool,
     // for capturing output
     results: &mut CommandResult,) -> Result<i32> {
@@ -276,6 +278,16 @@ fn run_command(
                         return Err(e);
                     }
                 }
+            }
+
+            if params.isatty && !params.capture_output {
+                shell.add_cmd_to_job(
+                    id, 
+                    child, 
+                    *pgid, 
+                    cmd.cmd.clone(),
+                    params.background
+                );
             }
 
             if idx == pipes_count && params.capture_output {

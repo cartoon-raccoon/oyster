@@ -19,8 +19,9 @@ use nix::sys::signal::{
 };
 
 use crate::types::{
-    Job,
+    JobTrack,
     UnwrapOr,
+    JobStatus,
 };
 use crate::execute;
 use crate::parser::Lexer;
@@ -31,7 +32,7 @@ use crate::types::{
 
 #[derive(Clone, Debug)]
 pub struct Shell {
-    pub jobs: BTreeMap<i32, Job>,
+    pub jobs: BTreeMap<i32, JobTrack>,
     aliases: HashMap<String, String>,
     pub env: HashMap<String, String>,
     pub vars: HashMap<String, String>,
@@ -61,12 +62,66 @@ impl Shell {
         self.current_dir = PathBuf::from(path);
     }
     /// Adds a job to the shell to track.
-    pub fn add_job(&mut self, job: Job) {
-        self.jobs.insert(job.id, job);
+    /// Normally only used for background jobs.
+    pub fn add_cmd_to_job(
+        &mut self, 
+        id: i32, 
+        pid: Pid, 
+        pgid: Pid, 
+        cmd: String,
+        bg: bool,
+    ) {
+        if let Some(job) = self.jobs.get_mut(&id) {
+            job.pids.push(pid);
+            return;
+        } else {
+            self.jobs.insert(id, JobTrack {
+                firstcmd: cmd,
+                id: id,
+                pgid: pgid,
+                pids: vec![pid],
+                status: JobStatus::Running,
+                background: bg,
+            });
+        }
     }
     /// Returns the job. Returns None if it doesn't exist.
-    pub fn retrieve_job(&mut self, id: i32) -> Option<Job> {
-        self.jobs.remove(&id)
+    pub fn remove_pid_from_job(&mut self, pid: Pid, pgid: Pid) 
+    -> Option<JobTrack> {
+        let mut pids_empty = false;
+        let mut jobid = 0;
+        for (id, job) in self.jobs.iter_mut() {
+            if pgid == job.pgid {
+                if let Ok(idx) = job.pids.binary_search(&pid) {
+                    job.pids.remove(idx);
+                }
+                pids_empty = job.pids.is_empty();
+                jobid = *id;
+            }
+        }
+        if pids_empty {
+            return self.jobs.remove(&jobid);
+        }
+        None
+    }
+
+    pub fn get_job_by_pgid(&mut self, pgid: Pid) -> Option<&JobTrack> {
+        for job in &self.jobs {
+            if job.1.pgid == pgid {
+                return Some(&job.1)
+            }
+        }
+        None
+    }
+
+    pub fn get_job_by_id(&mut self, id: i32) -> Option<&JobTrack> {
+        self.jobs.get(&id)
+    }
+
+    pub fn mark_job_as_stopped(&mut self, id: i32) {
+        if let Some(job) = self.jobs.get_mut(&id) {
+            job.status = JobStatus::Stopped;
+        }
     }
     /// Called by the alias builtin.
     /// Adds an alias to the shell.
@@ -105,6 +160,7 @@ impl Shell {
     }
     /// Loads in a config file and applies it to the shell.
     /// Internally calls the run_script function in execute.
+    #[allow(dead_code)] //TODO
     pub fn with_config() {
 
     }
@@ -404,7 +460,6 @@ pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<Stri
     //let re_parenths = Regex::new("\\$\\([ >&|\\-a-zA-Z0-9\"']+\\)").unwrap();
     let mut outputs = Vec::<String>::new();
     if let Some(bt_captures) = re_backtick.captures(&string) {
-        println!("command matched");
         for capture in bt_captures.iter() {
             if let Some(cmdmatch) = capture {
                 let mut newstring = cmdmatch.as_str()[1..].to_string();
@@ -426,10 +481,9 @@ pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<Stri
                         match execute::execute_jobs(shell, tokens, true) {
                             Ok(jobs) => {
                                 outputs.push(jobs.1);
-                                println!("{:?}", outputs);
                             }
                             Err(e) => {
-                                eprintln!("{}", e);
+                                eprintln!("error while executing: {}", e);
                                 return Err(CmdSubError);
                             }
                         }
@@ -438,10 +492,9 @@ pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<Stri
             }
         }
         for output in outputs {
-            println!("{:?}", output);
             string = re_backtick.replace(
                 &string.clone(), 
-                output.as_str()
+                output.trim()
             ).to_string();
         }
     }

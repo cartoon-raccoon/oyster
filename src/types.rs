@@ -2,6 +2,9 @@ use std::fmt;
 use std::collections::HashMap;
 use std::process;
 
+use nix::unistd::Pid;
+
+pub const STOPPED: i32 = 127;
 pub type ParseResult = Result<Vec<Job>, ParseError>;
 
 pub enum TokenizeResult {
@@ -63,7 +66,6 @@ pub enum ParseError {
     InvalidFileDesc,
     InvalidRDSyntax,
     MetacharsInBrace,
-    BraceMismatch,
     EmptyCommand,
     Error(String)
 }
@@ -96,9 +98,6 @@ impl fmt::Display for ParseError {
             },
             ParseError::MetacharsInBrace => {
                 write!(f, "error: metacharacters in brace")
-            }
-            ParseError::BraceMismatch => {
-                write!(f, "error: brace mismatch")
             }
             ParseError::EmptyCommand => {
                 write!(f, "error: empty command")
@@ -151,16 +150,43 @@ pub struct Job {
     pub cmds: Vec<Cmd>,
     pub execnext: Option<Exec>,
     pub id: i32,
-    pub pgid: i32,
-    pub status: JobStatus,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct JobTrack {
+    pub firstcmd: String,
+    pub id: i32,
+    pub pgid: Pid,
+    pub pids: Vec<Pid>,
+    pub status: JobStatus,
+    pub background: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum JobStatus {
-    InProgress,
-    Completed,
+    Running,
+    Completed(i32),
     Stopped,
-    Terminated,
+    Signaled(String),
+}
+
+impl fmt::Display for JobStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            JobStatus::Running => {
+                write!(f, "In Progress")
+            }
+            JobStatus::Completed(status) => {
+                write!(f, "Done({})", status)
+            }
+            JobStatus::Stopped => {
+                write!(f, "Stopped")
+            }
+            JobStatus::Signaled(string) => {
+                write!(f, "{}", string)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -171,6 +197,7 @@ pub struct CommandParams {
     pub env: HashMap<String, String>,
 }
 
+#[derive(Debug, Clone)]
 pub struct CommandResult {
     pub status: i32,
     pub stdout: String,
