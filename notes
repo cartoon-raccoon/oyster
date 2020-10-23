@@ -8,14 +8,16 @@ Other names:
 Oyshter? (Ew)
 
 Built-in commands:
-cd 
+cd *
 which 
 eval
 source
-export
+export *
 echo
 read
 kill
+alias *
+let *
 exit *
 
 Features:
