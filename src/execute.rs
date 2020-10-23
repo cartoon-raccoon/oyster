@@ -112,6 +112,8 @@ pub fn execute(
             "kill" => {
             }
             "exit" => {
+                let status = exit::run(shell, cmd);
+                return Ok(CommandResult::from_status(status));
             }
             _ => {}
         }

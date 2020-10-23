@@ -7,7 +7,6 @@ mod jobc;
 mod builtins;
 
 use std::error::Error;
-use std::process;
 use std::io::{self, Write};
 use std::env;
 
@@ -41,9 +40,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             match io::stdin().read_line(&mut buffer) {
                 Ok(_) => {} //returns bytes read, use somewhere?
                 Err(_) => {eprintln!("Shell: Could not read input")}
-            }
-            if buffer.trim() == "exit" {
-                process::exit(0);
             }
             match Lexer::tokenize(&mut shell, buffer.trim().to_string(), false) {
                 Ok(result) => {
