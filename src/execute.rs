@@ -59,10 +59,11 @@ pub fn execute_jobs(
             }
         } else { //if is None; this should only occur on the last job
             let result = execute(shell, job, false, capture)?;
+            captured.push_str(&result.stdout);
             return Ok((result.status, captured));
         }
     }
-    Ok((0, String::new()))
+    Ok((0, captured))
 }
 
 /// Lower level control. Executes single pipeline.
