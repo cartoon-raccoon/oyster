@@ -6,7 +6,7 @@ use crate::types::{
 use crate::parser::Lexer;
 
 pub fn set(shell: &mut Shell, cmd: Cmd) -> i32 {
-    if cmd.args.len() > 2 {
+    if cmd.args.len() != 2 {
         eprintln!("oyster: bad assignment");
         return 1;
     }
