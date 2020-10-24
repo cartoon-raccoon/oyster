@@ -4,6 +4,7 @@ mod types;
 mod shell;
 mod core;
 mod jobc;
+mod prompt;
 mod builtins;
 
 use std::error::Error;
@@ -17,14 +18,14 @@ use types::TokenizeResult::*;
 use execute::*;
 use shell::Shell;
 
-const PROMPT: &'static str = ">>>>>";
-
 fn main() -> Result<(), Box<dyn Error>> {
     unsafe {
         signal(Signal::SIGINT, SigHandler::SigIgn)?;
         signal(Signal::SIGQUIT, SigHandler::SigIgn)?;
+        signal(Signal::SIGTSTP, SigHandler::SigDfl)?;
     }
     let mut shell = Shell::new();
+    let mut last_status: i32 = 0;
 
     let args: Vec<String> = env::args().collect();
     if args.len() > 0 && args[0].starts_with('-') {
@@ -33,7 +34,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     
     loop {
         jobc::try_wait_bg_jobs(&mut shell);
-        print!("{} ", PROMPT); io::stdout().flush().unwrap();
+        let prompt = prompt::get_prompt(last_status);
+        print!("{} ", prompt); io::stdout().flush().unwrap();
         let mut buffer = String::new();
 
         loop {
@@ -53,7 +55,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                         }
                         Good(parsedtokens) => {
                             match execute_jobs(&mut shell, parsedtokens, false) {
-                                Ok(_result) => {}
+                                Ok(result) => {
+                                    last_status = result.0;
+                                }
                                 Err(e) => {
                                     eprintln!("{}", e.to_string());
                                 }
