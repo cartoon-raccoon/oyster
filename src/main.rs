@@ -12,6 +12,7 @@ use std::io::{self, Write};
 use std::env;
 
 use nix::sys::signal::{signal, Signal, SigHandler,};
+use rustyline::Editor;
 
 use parser::Lexer;
 use types::TokenizeResult::*;
@@ -24,6 +25,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         signal(Signal::SIGQUIT, SigHandler::SigIgn)?;
         signal(Signal::SIGTSTP, SigHandler::SigDfl)?;
     }
+
+    let mut linereader = Editor::<()>::new();
     let mut shell = Shell::new();
     let mut last_status: i32 = 0;
 
@@ -35,13 +38,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     loop {
         jobc::try_wait_bg_jobs(&mut shell);
         let prompt = prompt::get_prompt(last_status);
-        print!("{} ", prompt); io::stdout().flush().unwrap();
-        let mut buffer = String::new();
+        let mut buffer: String;
 
         loop {
-            match io::stdin().read_line(&mut buffer) {
-                Ok(_) => {} //returns bytes read, use somewhere?
-                Err(_) => {eprintln!("Shell: Could not read input")}
+            match linereader.readline(&prompt) {
+                Ok(line) => {
+                    buffer = line;
+                } //returns bytes read, use somewhere?
+                Err(_) => {
+                    eprintln!("Shell: Could not read input");
+                    continue;
+                }
             }
             match Lexer::tokenize(&mut shell, buffer.trim().to_string(), false) {
                 Ok(result) => {

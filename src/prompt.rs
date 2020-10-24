@@ -32,7 +32,7 @@ pub fn get_prompt(status: i32) -> String {
         arrow = format!("{}❯{}", RED, RESET);
     }
     if let Ok(prompt) = render_prompt() {
-        return format!("{} \n{}", prompt, arrow);
+        return format!("{} \n{} ", prompt, arrow);
     } else {
         eprintln!("oyster: could not generate prompt: directory error");
         return String::from(">>>>>")
