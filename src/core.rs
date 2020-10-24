@@ -27,10 +27,10 @@ use nix::errno::Errno;
 use crate::types::*;
 use crate::jobc;
 use crate::shell::{self, Shell};
+use crate::builtins::*;
 
 /// Even lower level, it deconstructs the job
 /// and passes raw parameters to the final function.
-/// Also handles command expansion logic.
 pub fn run_pipeline(
     shell: &mut Shell, 
     job: Job, 
@@ -215,7 +215,6 @@ fn run_command(
                 }
             }
 
-            //TODO: Fix this: stdout not redirecting properly
             if idx == pipes_count && params.capture_output {
                 if !stdout_redirected {
                     close(fds_capture_stdout.0).unwrap_or_exit(PIPE_END_CLOSE_ERR, 4);
@@ -229,7 +228,51 @@ fn run_command(
                 // }
             }
 
-            //TODO 2: Check for builtin commands
+            match cmd.cmd.as_str() {
+                "cd" => {
+                    let status = cd::run(shell, cmd);
+                    process::exit(status);
+                }
+                "bg" => {
+                    let status = bg::run(shell, cmd);
+                    process::exit(status);                
+                }
+                "fg" => {
+                    let status = fg::run(shell, cmd);
+                    process::exit(status);                
+                }
+                "alias" => {
+                    let status = alias::set(shell, cmd);
+                    process::exit(status);
+                }
+                "unalias" => {
+                    let status = alias::unset(shell, cmd);
+                    process::exit(status);
+                }
+                "let" => {
+                    let status = set::run(shell, cmd);
+                    process::exit(status);
+                }
+                "which" => {
+                }
+                "eval" => {
+                }
+                "source" => {
+                }
+                "export" => {
+                    let status = export::run(cmd);
+                    process::exit(status);
+                }
+                "echo" => {
+                }
+                "kill" => {
+                }
+                "exit" => {
+                    let status = exit::run(shell, cmd);
+                    process::exit(status);
+                }
+                _ => {}
+            }
 
             //TODO: Load in env vars
             //TODO: Search in path
