@@ -37,27 +37,34 @@ fn main() -> Result<(), Box<dyn Error>> {
     
     loop {
         jobc::try_wait_bg_jobs(&mut shell);
-        let prompt = prompt::get_prompt(last_status);
-        let mut buffer: String;
+        let prompt = prompt::render_prompt(last_status);
+        let mut buffer = String::new();
 
-        loop {
-            match linereader.readline(&prompt) {
-                Ok(line) => {
-                    buffer = line;
-                } //returns bytes read, use somewhere?
-                Err(_) => {
-                    eprintln!("Shell: Could not read input");
-                    continue;
-                }
+        match linereader.readline(&prompt) {
+            Ok(line) => {
+                buffer.push_str(&line);
+            } //returns bytes read, use somewhere?
+            Err(_) => {
+                last_status = 1;
+                continue;
             }
+        }
+        loop {
             match Lexer::tokenize(&mut shell, buffer.trim().to_string(), false) {
                 Ok(result) => {
                     match result {
                         n@ UnmatchedDQuote | n@ UnmatchedSQuote |
                         n@ EndsOnAnd | n@ EndsOnOr | n@ EndsOnPipe => {
                             print!("{} ", n); io::stdout().flush().unwrap();
+                            match io::stdin().read_line(&mut buffer) {
+                                Ok(_) => {},
+                                Err(_) => {
+                                    eprintln!("oyster: error reading to line");
+                                }
+                            }
                         }
                         EmptyCommand => {
+                            buffer.clear();
                             break;
                         }
                         Good(parsedtokens) => {
@@ -69,6 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                     eprintln!("{}", e.to_string());
                                 }
                             }
+                            buffer.clear();
                             break;
                         }
                     }
