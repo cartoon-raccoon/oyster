@@ -19,6 +19,7 @@ use nix::unistd::{
     close,
     ForkResult
 };
+use nix::sys::signal::{signal, Signal, SigHandler};
 use nix::Result;
 use nix::Error;
 use nix::errno::Errno;
@@ -154,6 +155,12 @@ fn run_command(
             } else {
                 setpgid(Pid::from_raw(0), *pgid)
                     .unwrap_or_exit(PGID_SET_ERR, 2);
+            }
+
+            unsafe {
+                signal(Signal::SIGINT, SigHandler::SigDfl)?;
+                signal(Signal::SIGQUIT, SigHandler::SigDfl)?;
+                signal(Signal::SIGTSTP, SigHandler::SigDfl)?;
             }
 
             //connecting up pipes for commands to read from
@@ -296,7 +303,6 @@ fn run_command(
             if idx == pipes_count && params.capture_output {
                 close(fds_capture_stdout.1)?;
                 close(fds_capture_stderr.1)?;
-                println!("closed stdout");
                 let mut stdoutfd = unsafe {File::from_raw_fd(fds_capture_stdout.0)};
                 let mut sout = String::new();
                 stdoutfd.read_to_string(&mut sout).unwrap();

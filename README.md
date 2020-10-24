@@ -2,14 +2,18 @@
 
 A simple (for now) UNIX shell written in Rust.
 
-Right now it implements pipelining and conditional execution, as well as command aliasing and command substitution. It can also expand ~ to the user's home directory and expand variables, as well as expanding braces recursively.
+Right now it implements pipelining and conditional execution, as well as command aliasing and command substitution. It can also expand `~` to the user's home directory and expand variables, as well as expanding braces recursively. Its prompt can also display the last exit status, username and current working directory.
 
-SLOC Count: `2112`
+Right now, the most important things to implement are tab completion and accessing past commands using the up key, as well as `!!` expansion and reading from an RC file (to set aliases and the prompt).
+
+SLOC Count: `2339`
 
 The final capabilities of this shell are:
 - Pipelining, conditional execution, command substitution (Done)
 - Command aliasing, variable, brace and tilde expansion (Done)
-- Very basic scripting (relies on bash/zsh to execute shell scripts)
+- Job control - sending jobs to background (Done)
+- Basic scripting (relies on bash/zsh to execute shell scripts)
+    - I'm learning about programming languages now, and I might choose to develop this into an entire custom scripting language sometime down the line.
 - Customizable prompt (oh-my-zsh/starship style)
     - Can display last exit status, pwd, git status, time, etcetc.
 - Nice-to-have builtins (history, env activation, etc)

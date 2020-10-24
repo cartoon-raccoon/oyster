@@ -22,19 +22,17 @@ exit *
 
 Features:
 Autocompletion
-job control
-bash script interpretation
+job control (done)
+Basic scripting
 shell expansions
-    -> $(command) || `command` (FIXME)
+    -> $(command) || `command` (done)
     -> $variable (done)
     -> ~ to home dir (done)
     -> - (when used with cd) to previous dir
     -> !! to last command (in editor)
-    -> button.{js, css} to button.js, button.css
-    Note: Shell expansions cannot contain redirections
+    -> button.{js, css} to button.js, button.css (done)
 
 Todo:
-Create cursor (rustyline)
 Char matching for cursor
     -> Up shows history
     -> Left/Right moves cursor
