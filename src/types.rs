@@ -177,7 +177,7 @@ impl fmt::Display for JobStatus {
                 write!(f, "In Progress")
             }
             JobStatus::Completed(status) => {
-                write!(f, "Done({})", status)
+                write!(f, "Done ({})", status)
             }
             JobStatus::Stopped => {
                 write!(f, "Stopped")

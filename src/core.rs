@@ -96,7 +96,10 @@ pub fn run_pipeline(
     
     for pipe in pipes {
         close(pipe.0)?;
-        close(pipe.1)?;
+        match close(pipe.1) {
+            Ok(_) => {},
+            Err(_) => {}
+        }
     }
 
     if background {
@@ -293,6 +296,7 @@ fn run_command(
             if idx == pipes_count && params.capture_output {
                 close(fds_capture_stdout.1)?;
                 close(fds_capture_stderr.1)?;
+                println!("closed stdout");
                 let mut stdoutfd = unsafe {File::from_raw_fd(fds_capture_stdout.0)};
                 let mut sout = String::new();
                 stdoutfd.read_to_string(&mut sout).unwrap();
