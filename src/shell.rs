@@ -123,6 +123,15 @@ impl Shell {
             job.status = JobStatus::Stopped;
         }
     }
+
+    pub fn mark_job_as_running(&mut self, id: i32, bg: bool) {
+        if let Some(job) = self.jobs.get_mut(&id) {
+            job.status = JobStatus::Running;
+            if bg {
+                job.background = true;
+            }
+        }
+    }
     /// Called by the alias builtin.
     /// Adds an alias to the shell.
     pub fn add_alias(&mut self, key: &str, value: &str) {

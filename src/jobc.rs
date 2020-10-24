@@ -11,7 +11,7 @@ use crate::types::{
 use crate::shell::Shell;
 
 pub fn print_job(job: &JobTrack) {
-    println!("[{}] {} {:?} {:?}",
+    println!("[{}] {} {} {}",
         job.id, job.pgid, job.firstcmd, job.status
     );
 }
@@ -22,6 +22,14 @@ pub fn mark_job_as_stopped(shell: &mut Shell, id: i32) {
         print_job(job);
     }
 }
+
+pub fn mark_job_as_running(shell: &mut Shell, id: i32, bg: bool) {
+    shell.mark_job_as_running(id, bg);
+    if let Some(job) = shell.get_job_by_id(id) {
+        print_job(job);
+    }
+}
+
 pub fn cleanup_process(
     shell: &mut Shell, 
     pid: Pid, 

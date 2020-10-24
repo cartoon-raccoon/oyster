@@ -85,6 +85,10 @@ pub fn execute(
                 let status = cd::run(shell, cmd);
                 return Ok(CommandResult::from_status(status));
             }
+            "bg" => {
+                let status = bg::run(shell, cmd);
+                return Ok(CommandResult::from_status(status));
+            }
             "alias" => {
                 let status = alias::set(shell, cmd);
                 return Ok(CommandResult::from_status(status));
