@@ -11,9 +11,11 @@ use crate::types::{
 use crate::shell::Shell;
 
 pub fn print_job(job: &JobTrack) {
-    println!("[{}] {} {} {}",
-        job.id, job.pgid, job.firstcmd, job.status
-    );
+    if job.background {
+        println!("[{}] {} {} {}",
+            job.id, job.pgid, job.firstcmd, job.status
+        );
+    }
 }
 
 pub fn mark_job_as_stopped(shell: &mut Shell, id: i32) {

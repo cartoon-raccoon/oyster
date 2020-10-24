@@ -89,6 +89,10 @@ pub fn execute(
                 let status = bg::run(shell, cmd);
                 return Ok(CommandResult::from_status(status));
             }
+            "fg" => {
+                let status = fg::run(shell, cmd);
+                return Ok(CommandResult::from_status(status));
+            }
             "alias" => {
                 let status = alias::set(shell, cmd);
                 return Ok(CommandResult::from_status(status));
