@@ -6,19 +6,30 @@ pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
     if cmd.args.len() > 2 {
         eprintln!("cd: too many arguments");
         return 1;
-    } else if cmd.args.len() == 1 {
-        eprintln!("cd: not enough arguments");
-        return 1;
-    }
+    } 
     if cmd.redirects.len() > 0 {
         eprintln!("cd: redirects not accepted")
     }
+    let cd_to: String;
+    if cmd.args.len() == 1 {
+        cd_to = env::var("HOME").unwrap_or(String::new());
+    } else {
+        cd_to = cmd.args[1].clone();
+    }
+    if cd_to.is_empty() {
+        eprintln!("oyster: env error, cannot set home dir");
+        return 2;
+    }
     let pwd = env::var("PWD").unwrap_or(String::new());
+    if pwd.is_empty() {
+        eprintln!("oyster: env error, cannot get pwd");
+        return 2;
+    }
     shell.set_prev_dir(pwd);
-    match env::set_current_dir(cmd.args[1].clone()) {
+    match env::set_current_dir(&cd_to) {
         Ok(()) => {
-            env::set_var("PWD", cmd.args[1].clone());
-            shell.set_current_dir(cmd.args[1].clone());
+            env::set_var("PWD", &cd_to);
+            shell.set_current_dir(cd_to);
             return 0;
         }
         Err(e) => {
