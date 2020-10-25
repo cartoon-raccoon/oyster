@@ -89,6 +89,7 @@ impl Lexer {
             // println!("In Dquote: {}", in_dquote);
             // println!("In Squote: {}", in_squote);
             // println!("Ignore:    {}", ignore_next);
+            // println!("In tilde:  {}", in_tilde);
             if ignore_next {
                 ignore_next = false;
                 prev_char = Some(c);
@@ -230,13 +231,17 @@ impl Lexer {
                     in_tilde = false;
                     has_brace = false;
                 },
-                '~' if !in_squote && !in_dquote && prev_char == Some(' ') => {
+                '~' if !in_squote && !in_dquote => {
                     if brace_level > 0 {return Err(ParseError::Error(String::from("~")))}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, in_tilde, has_brace
-                    );
-                    in_tilde = true;
-                    has_brace = false;
+                    if prev_char == None || prev_char == Some(' ') {
+                        push(&mut tokenvec, &mut word, c, 
+                            in_dquote, in_squote, in_tilde, has_brace
+                        );
+                        in_tilde = true;
+                        has_brace = false;
+                    } else {
+                        word.push(c);
+                    }
                 }
                 ';' if !in_squote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
@@ -247,7 +252,7 @@ impl Lexer {
                         tokenvec.push(Token::Consec);
                         ignore_next = false;
                     }
-                    in_tilde = false;
+                    in_tilde = true;
                     has_brace = false;
                 }
                 '\'' => {
@@ -357,7 +362,7 @@ impl Lexer {
                 }
                 true
             }).collect();
-
+        
         if in_dquote {
             return Ok(TokenizeResult::UnmatchedDQuote);
         } else if in_squote {
