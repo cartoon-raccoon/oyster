@@ -176,12 +176,22 @@ fn run_command(
                 dup2(fds.1, 1).unwrap_or_exit(PIPE_CONNECT_ERR, 4);
             }
 
+            if cmd.pipe_stderr {
+                if idx < pipes_count {
+                    let fds = pipes[idx];
+                    dup2(fds.1, 2).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                } else if !params.capture_output {
+                    let fd = dup(2).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                    dup2(fd, 2).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
+                }
+            }
+
             let mut stdout_redirected = false;
             //let mut stderr_redirected = false;
 
             for redirect in &cmd.redirects {
                 
-                if redirect.0 == "&2" && redirect.2 == "&1" {
+                if redirect.0 == "2" && redirect.2 == "&1" {
                     if idx < pipes_count {
                         let fds = pipes[idx];
                         dup2(fds.1, 2).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
