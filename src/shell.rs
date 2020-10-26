@@ -456,57 +456,49 @@ pub fn replace_aliases(shell: &Shell, word: String) -> String {
     word
 }
 
-pub fn needs_substitution(test: &str) -> bool {
-    let re_backtick = Regex::new("`[ >&|\\-a-zA-Z0-9\"']+`").unwrap();
-    let re_parenths = Regex::new("\\$\\([ >&|\\-a-zA-Z0-9\"']+\\)").unwrap();
-
-    re_backtick.is_match(test) || re_parenths.is_match(test)
-}
-
 // This command is gonna be sooo fucking slow
 pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<String, CmdSubError> {
     let re_backtick = Regex::new("`[ >&|\\-a-zA-Z0-9\"']+`").unwrap();
     //let re_parenths = Regex::new("\\$\\([ >&|\\-a-zA-Z0-9\"']+\\)").unwrap();
     let mut outputs = Vec::<String>::new();
-    if let Some(bt_captures) = re_backtick.captures(&string) {
-        for capture in bt_captures.iter() {
-            if let Some(cmdmatch) = capture {
-                let mut newstring = cmdmatch.as_str()[1..].to_string();
-                newstring.pop();
-                match Lexer::tokenize(shell, newstring, true).unwrap() {
-                    UnmatchedDQuote | UnmatchedSQuote => {
-                        eprintln!("oyster: unmatched quote");
-                        return Err(CmdSubError);
-                    }
-                    EndsOnAnd | EndsOnOr | EndsOnPipe => {
-                        eprintln!("oyster: parse error, ends on delimiter");
-                        return Err(CmdSubError);
-                    }
-                    EmptyCommand => {
-                        eprintln!("warning: empty command");
-                        return Ok(String::new());
-                    }
-                    Good(tokens) => {
-                        match execute::execute_jobs(shell, tokens, true) {
-                            Ok(jobs) => {
-                                outputs.push(jobs.1);
-                            }
-                            Err(e) => {
-                                eprintln!("error while executing: {}", e);
-                                return Err(CmdSubError);
-                            }
+    for capture in re_backtick.captures_iter(&string) {
+        if let Some(cmdmatch) = capture.get(0) {
+            let mut newstring = cmdmatch.as_str()[1..].to_string();
+            newstring.pop();
+            match Lexer::tokenize(newstring).unwrap() {
+                UnmatchedDQuote | UnmatchedSQuote | UnmatchedBQuote => {
+                    eprintln!("oyster: unmatched quote");
+                    return Err(CmdSubError);
+                }
+                EndsOnAnd | EndsOnOr | EndsOnPipe => {
+                    eprintln!("oyster: parse error, ends on delimiter");
+                    return Err(CmdSubError);
+                }
+                EmptyCommand => {
+                    eprintln!("warning: empty command");
+                    return Ok(String::new());
+                }
+                Good(tokens) => {
+                    match execute::execute_jobs(shell, tokens, true) {
+                        Ok(jobs) => {
+                            outputs.push(jobs.1);
+                        }
+                        Err(e) => {
+                            eprintln!("error while executing: {}", e);
+                            return Err(CmdSubError);
                         }
                     }
                 }
             }
         }
-        for output in outputs {
-            string = re_backtick.replace(
-                &string.clone(), 
-                output.trim()
-            ).to_string();
-        }
     }
+    for output in outputs {
+        string = re_backtick.replace(
+            &string.clone(), 
+            output.trim()
+        ).to_string();
+    }
+
     Ok(string)
 }
 
@@ -560,16 +552,6 @@ mod tests {
             substitute_commands(&mut shell, command).unwrap(),
             String::from("hello")
         )
-    }
-
-    #[test]
-    fn check_needs_subbing() {
-        let command1 = "sudo pacman -Rs `which data`";
-        let command2 = "echo which data";
-        let command3 = "echo listening to $(cogsy random)";
-        assert!(needs_substitution(command1));
-        assert!(!needs_substitution(command2));
-        assert!(needs_substitution(command3));
     }
 
     #[test]

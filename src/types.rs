@@ -10,6 +10,7 @@ pub type ParseResult = Result<Vec<Job>, ParseError>;
 pub enum TokenizeResult {
     UnmatchedDQuote,
     UnmatchedSQuote,
+    UnmatchedBQuote,
     EndsOnOr,
     EndsOnAnd,
     EndsOnPipe,
@@ -25,6 +26,9 @@ impl fmt::Display for TokenizeResult {
             }
             TokenizeResult::UnmatchedSQuote => {
                 write!(f, "quote>" )
+            }
+            TokenizeResult::UnmatchedBQuote => {
+                write!(f, "bquote>")
             }
             TokenizeResult::EndsOnAnd => {
                 write!(f, "cmdand>")
@@ -67,6 +71,7 @@ pub enum ParseError {
     InvalidRDSyntax,
     MetacharsInBrace,
     EmptyCommand,
+    GenericError,
     Error(String)
 }
 
@@ -102,6 +107,9 @@ impl fmt::Display for ParseError {
             ParseError::EmptyCommand => {
                 write!(f, "error: empty command")
             }
+            ParseError::GenericError => {
+                write!(f, "")
+            }
             ParseError::Error(s) => {
                 write!(f, "error: parse error near `{}`", s)
             }
@@ -114,6 +122,7 @@ pub enum Token {
     Word(String),
     SQuote(String),
     DQuote(String),
+    BQuote(String),
     Tilde(String),
     Brace(String),
     //Var(String),

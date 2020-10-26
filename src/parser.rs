@@ -11,7 +11,6 @@ use crate::types::{
 use crate::shell::{
     Shell,
     substitute_commands,
-    needs_substitution,
     expand_variables,
     expand_braces,
     expand_tilde,
@@ -23,24 +22,10 @@ pub struct Lexer;
 impl Lexer {
 
     /// Tokenizes the &str into a Vec of tokens
-    pub fn tokenize(shell: &mut Shell, line: String, sub: bool) 
+    pub fn tokenize(line: String) 
     -> Result<TokenizeResult, ParseError> {
-        let to_parse: String;
-        if !sub && needs_substitution(&line) {
-            match substitute_commands(shell, line.to_string()) {
-                Ok(string) => {
-                    to_parse = string;
-                }
-                Err(e) => {
-                    eprintln!("{}", e);
-                    return Ok(TokenizeResult::EmptyCommand);
-                }
-            }
-        } else {
-            to_parse = line;
-        }
 
-        let mut line_iter = to_parse.chars().peekable();
+        let mut line_iter = line.chars().peekable();
 
         //Accumulators
         let mut tokenvec = Vec::<Token>::new();
@@ -51,8 +36,10 @@ impl Lexer {
         //let mut in_var = false;
         let mut in_dquote = false;
         let mut in_squote = false;
+        let mut in_bquote = false;
         let mut brace_level: i32 = 0;
         let mut has_brace = false;
+        let mut has_bquote = false;
         let mut ignore_next = false;
         let mut prev_char = None;
 
@@ -97,7 +84,7 @@ impl Lexer {
             }
             match c {
                 '|' if line_iter.peek() == Some(&'|') 
-                    && !in_squote => {
+                    && !in_squote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, in_tilde, has_brace
@@ -110,7 +97,7 @@ impl Lexer {
                     has_brace = false;
                 },
                 '|' if line_iter.peek() == Some(&'&') 
-                    && !in_squote => {
+                    && !in_squote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, in_tilde, has_brace
@@ -122,8 +109,7 @@ impl Lexer {
                     in_tilde = false;
                     has_brace = false;
                 },
-                '|' if line_iter.peek() != Some(&'|') 
-                    && !in_squote => {
+                '|' if !in_squote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, in_tilde, has_brace
@@ -136,7 +122,7 @@ impl Lexer {
                     has_brace = false;
                 },
                 '&' if line_iter.peek() == Some(&'&') 
-                    && !in_squote => {
+                    && !in_squote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, in_tilde, has_brace
@@ -149,7 +135,7 @@ impl Lexer {
                     has_brace = false;
                 },
                 '&' if line_iter.peek() == Some(&'>') 
-                    && !in_squote => {
+                    && !in_squote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, in_tilde, has_brace
@@ -161,8 +147,7 @@ impl Lexer {
                     in_tilde = false;
                     has_brace = false;
                 }
-                '&' if line_iter.peek() != Some(&'&') 
-                    && !in_squote => {
+                '&' if !in_squote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, in_tilde, has_brace
@@ -178,13 +163,13 @@ impl Lexer {
                     in_tilde = false;
                     has_brace = false;
                 },
-                '{' if !in_dquote && !in_squote => {
+                '{' if !in_dquote && !in_squote && !in_bquote => {
                     in_tilde = false;
                     has_brace = true;
                     brace_level += 1;
                     word.push(c);
                 }
-                '}' if !in_dquote && !in_squote => {
+                '}' if !in_dquote && !in_squote && !in_bquote => {
                     brace_level -= 1;
                     word.push(c);
                     if brace_level == 0 && line_iter.peek() == Some(&' ') {
@@ -193,7 +178,7 @@ impl Lexer {
                     }
                 }
                 '>' if line_iter.peek() == Some(&'>') 
-                    && !in_squote => {
+                    && !in_squote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, in_tilde, has_brace
@@ -206,7 +191,7 @@ impl Lexer {
                     has_brace = false;
                 },
                 '>' if line_iter.peek() == Some(&'&') 
-                    && !in_squote => {
+                    && !in_squote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, in_tilde, has_brace
@@ -219,7 +204,7 @@ impl Lexer {
                     has_brace = false;
                 }
                 '>' if line_iter.peek() != Some(&'>') 
-                    && !in_squote => {
+                    && !in_squote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, in_tilde, has_brace
@@ -231,7 +216,7 @@ impl Lexer {
                     in_tilde = false;
                     has_brace = false;
                 },
-                '~' if !in_squote && !in_dquote => {
+                '~' if !in_squote && !in_dquote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::Error(String::from("~")))}
                     if prev_char == None || prev_char == Some(' ') {
                         push(&mut tokenvec, &mut word, c, 
@@ -243,7 +228,7 @@ impl Lexer {
                         word.push(c);
                     }
                 }
-                ';' if !in_squote => {
+                ';' if !in_squote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, in_tilde, has_brace
@@ -252,8 +237,23 @@ impl Lexer {
                         tokenvec.push(Token::Consec);
                         ignore_next = false;
                     }
-                    in_tilde = true;
+                    in_tilde = false;
                     has_brace = false;
+                }
+                '`' if !in_squote => {
+                    has_brace = false;
+                    word.push(c);
+                    if in_bquote {
+                        in_bquote = false;
+                        if !in_dquote {
+                            tokenvec.push(Token::BQuote(word.clone()));
+                            word.clear();
+                        } else {
+                            has_bquote = true;
+                        }
+                    } else {
+                        in_bquote = true;
+                    }
                 }
                 '\'' => {
                     ignore_next = false;
@@ -275,7 +275,7 @@ impl Lexer {
                         in_squote = true;
                     }
                 }
-                '"' if !in_squote => {
+                '"' if !in_squote && !in_bquote => {
                     ignore_next = false;
                     if in_dquote {
                         in_dquote = false;
@@ -285,6 +285,10 @@ impl Lexer {
                             in_tilde = false;
                         } else if brace_level > 0 {
 
+                        } else if has_bquote {
+                            tokenvec.push(Token::BQuote(word.clone()));
+                            word.clear();
+                            has_bquote = false;
                         } else {
                             tokenvec.push(Token::DQuote(word.clone()));
                             word.clear();
@@ -310,7 +314,7 @@ impl Lexer {
                         continue;
                     }
                 }
-                ' ' if !in_squote => {
+                ' ' if !in_squote && !in_bquote => {
                     ignore_next = false;
                     if prev_char != Some(' ') {
                         if !in_dquote {
@@ -363,10 +367,14 @@ impl Lexer {
                 true
             }).collect();
         
-        if in_dquote {
-            return Ok(TokenizeResult::UnmatchedDQuote);
+        //println!("{:?}", tokenvec);
+        
+        if in_bquote {
+            return Ok(TokenizeResult::UnmatchedBQuote);
         } else if in_squote {
-            return Ok(TokenizeResult::UnmatchedSQuote);
+            return Ok(TokenizeResult::UnmatchedSQuote); 
+        } else if in_dquote {
+            return Ok(TokenizeResult::UnmatchedDQuote);
         } else {
             match tokenvec.last() {
                 Some(token) => {
@@ -463,7 +471,7 @@ impl Lexer {
                     //aliasing only works if the alias value is a valid command
                     //so we don't have to match all cases here
                     if let TokenizeResult::Good(tokens) = 
-                        Lexer::tokenize(shell, tokens, true).unwrap() {
+                        Lexer::tokenize(tokens).unwrap() {
                         tokengrp.extend(tokens);
                         tokengrp.extend(tail);
                     }
@@ -591,6 +599,17 @@ impl Lexer {
                     }
                     Token::SQuote(string) => {
                         buffer.push(string);
+                    }
+                    Token::BQuote(string) => {
+                        match substitute_commands(shell, string) {
+                            Ok(string) => {
+                                buffer.push(string);
+                            }
+                            Err(e) => {
+                                eprintln!("{}", e);
+                                return Err(ParseError::GenericError);
+                            }
+                        }
                     }
                     Token::Brace(string) => {
                         let expanded = expand_braces(shell, string);

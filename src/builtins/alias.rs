@@ -15,7 +15,7 @@ pub fn set(shell: &mut Shell, cmd: Cmd) -> i32 {
         eprintln!("oyster: bad assignment");
         return 1;
     }
-    match Lexer::tokenize(shell, key_value[1].to_string(), true) {
+    match Lexer::tokenize(key_value[1].to_string()) {
         Ok(result) => {
             if let TokenizeResult::Good(tokens) = result {
                 match Lexer::parse_tokens(shell, tokens) {

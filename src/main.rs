@@ -50,10 +50,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
         loop {
-            match Lexer::tokenize(&mut shell, buffer.trim().to_string(), false) {
+            match Lexer::tokenize(buffer.trim().to_string()) {
                 Ok(result) => {
                     match result {
-                        n@ UnmatchedDQuote | n@ UnmatchedSQuote |
+                        n@ UnmatchedDQuote | n@ UnmatchedSQuote | n@ UnmatchedBQuote |
                         n@ EndsOnAnd | n@ EndsOnOr | n@ EndsOnPipe => {
                             print!("{} ", n); io::stdout().flush().unwrap();
                             match io::stdin().read_line(&mut buffer) {
@@ -74,6 +74,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 }
                                 Err(e) => {
                                     eprintln!("{}", e.to_string());
+                                    last_status = 10;
                                 }
                             }
                             buffer.clear();
