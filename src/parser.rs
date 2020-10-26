@@ -269,6 +269,8 @@ impl Lexer {
                         word.clear();
                     } else if in_dquote {
                         word.push(c);
+                    } else if in_bquote {
+                        word.push(c);
                     } else if brace_level > 0 {
 
                     } else {

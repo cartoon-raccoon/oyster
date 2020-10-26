@@ -458,7 +458,7 @@ pub fn replace_aliases(shell: &Shell, word: String) -> String {
 
 // This command is gonna be sooo fucking slow
 pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<String, CmdSubError> {
-    let re_backtick = Regex::new("`[ >&|\\-a-zA-Z0-9\"']+`").unwrap();
+    let re_backtick = Regex::new("`[ $/>~&|\\-a-zA-Z0-9\"']+`").unwrap();
     //let re_parenths = Regex::new("\\$\\([ >&|\\-a-zA-Z0-9\"']+\\)").unwrap();
     let mut outputs = Vec::<String>::new();
     for capture in re_backtick.captures_iter(&string) {
@@ -467,11 +467,11 @@ pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<Stri
             newstring.pop();
             match Lexer::tokenize(newstring).unwrap() {
                 UnmatchedDQuote | UnmatchedSQuote | UnmatchedBQuote => {
-                    eprintln!("oyster: unmatched quote");
+                    eprintln!("error: unmatched quote");
                     return Err(CmdSubError);
                 }
                 EndsOnAnd | EndsOnOr | EndsOnPipe => {
-                    eprintln!("oyster: parse error, ends on delimiter");
+                    eprintln!("error: command ends on delimiter");
                     return Err(CmdSubError);
                 }
                 EmptyCommand => {
@@ -479,6 +479,7 @@ pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<Stri
                     return Ok(String::new());
                 }
                 Good(tokens) => {
+                    // expand_variables(shell, &mut tokens);
                     match execute::execute_jobs(shell, tokens, true) {
                         Ok(jobs) => {
                             outputs.push(jobs.1);
