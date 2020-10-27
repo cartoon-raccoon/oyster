@@ -108,12 +108,49 @@ impl fmt::Display for ParseError {
                 write!(f, "error: empty command")
             }
             ParseError::GenericError => {
-                write!(f, "")
+                Ok(())
             }
             ParseError::Error(s) => {
                 write!(f, "error: parse error near `{}`", s)
             }
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ShellError {
+    msg: String,
+}
+
+impl std::error::Error for ShellError {}
+
+impl From<ParseError> for ShellError {
+    fn from(error: ParseError) -> ShellError {
+        ShellError {
+            msg: error.to_string()
+        }
+    }
+}
+
+impl From<CmdSubError> for ShellError {
+    fn from(error: CmdSubError) -> ShellError {
+        ShellError {
+            msg: error.to_string()
+        }
+    }
+}
+
+impl From<nix::Error> for ShellError {
+    fn from(error: nix::Error) -> ShellError {
+        ShellError {
+            msg: error.to_string()
+        }
+    }
+}
+
+impl fmt::Display for ShellError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.msg)
     }
 }
 

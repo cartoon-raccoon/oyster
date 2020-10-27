@@ -1,8 +1,12 @@
-use std::error::Error;
-
 use nix::unistd::getpgid;
 
-use crate::types::{Token, Job, Exec, CommandResult};
+use crate::types::{
+    Token, 
+    Job, 
+    Exec, 
+    CommandResult,
+    ShellError,
+};
 use crate::parser::Lexer;
 use crate::core;
 use crate::shell::{
@@ -16,7 +20,7 @@ pub fn execute_jobs(
     shell: &mut Shell, 
     tokens: Vec<Token>, 
     capture: bool
-) -> Result<(i32, String), Box<dyn Error>> {
+) -> Result<(i32, String), ShellError> {
     
     let jobs = Lexer::parse_tokens(shell, tokens)?;
     //println!("{:?}", jobs);
@@ -73,7 +77,7 @@ pub fn execute(
     job: Job, 
     background: bool,
     capture: bool,
-) -> Result<CommandResult, Box<dyn Error>> {
+) -> Result<CommandResult, ShellError> {
 
     if job.cmds.len() == 1 { //no pipeline
         let mut cmd = job.cmds[0].clone();
