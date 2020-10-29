@@ -457,47 +457,73 @@ pub fn replace_aliases(shell: &Shell, word: String) -> String {
 }
 
 // This command is gonna be sooo fucking slow
-pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<String, CmdSubError> {
-    let re_backtick = Regex::new("`[ $/>~&|\\-a-zA-Z0-9\"']+`").unwrap();
-    //let re_parenths = Regex::new("\\$\\([ >&|\\-a-zA-Z0-9\"']+\\)").unwrap();
+pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, CmdSubError> {
+    println!("{}", string);
+    let mut stringchars = string.chars();
+    let mut captures: Vec<String> = Vec::new();
+    let mut rest: Vec<String> = Vec::new();
+    let mut word = String::new();
+    let mut in_quote = false;
+    while let Some(c) = stringchars.next() {
+        match c {
+            '`' if !in_quote => {
+                in_quote = true;
+                rest.push(word.clone());
+                word.clear();
+            }
+            '`' if in_quote => {
+                in_quote = false;
+                captures.push(word.clone());
+                word.clear();
+            }
+            '\\' => {
+                if let Some(c) = stringchars.next() {
+                    word.push(c);
+                    continue;
+                }
+            }
+            _ => {
+                word.push(c);
+            }
+        }
+    }
     let mut outputs = Vec::<String>::new();
-    for capture in re_backtick.captures_iter(&string) {
-        if let Some(cmdmatch) = capture.get(0) {
-            let mut newstring = cmdmatch.as_str()[1..].to_string();
-            newstring.pop();
-            match Lexer::tokenize(newstring).unwrap() {
-                UnmatchedDQuote | UnmatchedSQuote | UnmatchedBQuote => {
-                    eprintln!("error: unmatched quote");
-                    return Err(CmdSubError);
-                }
-                EndsOnAnd | EndsOnOr | EndsOnPipe => {
-                    eprintln!("error: command ends on delimiter");
-                    return Err(CmdSubError);
-                }
-                EmptyCommand => {
-                    eprintln!("warning: empty command");
-                    return Ok(String::new());
-                }
-                Good(tokens) => {
-                    // expand_variables(shell, &mut tokens);
-                    match execute::execute_jobs(shell, tokens, true) {
-                        Ok(jobs) => {
-                            outputs.push(jobs.1);
-                        }
-                        Err(e) => {
-                            eprintln!("error while executing: {}", e);
-                            return Err(CmdSubError);
-                        }
+    for capture in captures {
+        println!("{}", capture);
+        match Lexer::tokenize(capture).unwrap() {
+            UnmatchedDQuote | UnmatchedSQuote | UnmatchedBQuote => {
+                eprintln!("error: unmatched quote");
+                return Err(CmdSubError);
+            }
+            EndsOnAnd | EndsOnOr | EndsOnPipe => {
+                eprintln!("error: command ends on delimiter");
+                return Err(CmdSubError);
+            }
+            EmptyCommand => {
+                eprintln!("warning: empty command");
+                return Ok(String::new());
+            }
+            Good(tokens) => {
+                // expand_variables(shell, &mut tokens);
+                match execute::execute_jobs(shell, tokens, true) {
+                    Ok(jobs) => {
+                        outputs.push(jobs.1);
+                    }
+                    Err(e) => {
+                        eprintln!("error while executing: {}", e);
+                        return Err(CmdSubError);
                     }
                 }
             }
         }
     }
-    for output in outputs {
-        string = re_backtick.replace(
-            &string.clone(), 
-            output.trim()
-        ).to_string();
+    let mut final_str = String::new();
+    let mut outputs = outputs.iter();
+    for string in rest {
+        final_str.push_str(&string);
+        if let Some(output) = outputs.next() {
+            final_str.push_str(output)
+        }
     }
 
     Ok(string)
