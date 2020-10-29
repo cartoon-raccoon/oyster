@@ -24,6 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         signal(Signal::SIGINT, SigHandler::SigIgn)?;
         signal(Signal::SIGQUIT, SigHandler::SigIgn)?;
         signal(Signal::SIGTSTP, SigHandler::SigDfl)?;
+        signal(Signal::SIGCHLD, SigHandler::Handler(sigchld_handler))?;
     }
 
     let mut linereader = Editor::<()>::new();
@@ -84,9 +85,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 Err(e) => {
                     eprintln!("{}", e);
+                    last_status = 11;
                     break;
                 }
             }
         }
     }
+}
+
+extern "C" fn sigchld_handler(_: libc::c_int) {
+    //do something with this? idk
 }

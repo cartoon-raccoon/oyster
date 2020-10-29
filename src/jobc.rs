@@ -1,4 +1,4 @@
-use nix::unistd::Pid;
+use nix::unistd::{Pid, write};
 use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
 use nix::Error;
 use nix::errno::Errno;
@@ -12,9 +12,9 @@ use crate::shell::Shell;
 
 pub fn print_job(job: &JobTrack) {
     if job.background {
-        println!("[{}] {} {} {}",
-            job.id, job.pgid, job.firstcmd, job.status
-        );
+        let to_print = format!("[{}] {} {} {}",
+        job.id, job.pgid, job.firstcmd, job.status);
+        write(1, to_print.as_bytes()).unwrap();
     }
 }
 
