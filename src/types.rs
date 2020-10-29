@@ -72,7 +72,6 @@ pub enum ParseError {
     MetacharsInBrace,
     EmptyCommand,
     GenericError,
-    Error(String)
 }
 
 impl std::error::Error for ParseError {}
@@ -109,9 +108,6 @@ impl fmt::Display for ParseError {
             }
             ParseError::GenericError => {
                 Ok(())
-            }
-            ParseError::Error(s) => {
-                write!(f, "error: parse error near `{}`", s)
             }
         }
     }

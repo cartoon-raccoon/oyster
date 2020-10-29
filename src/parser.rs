@@ -217,8 +217,9 @@ impl Lexer {
                     has_brace = false;
                 },
                 '~' if !in_squote && !in_dquote && !in_bquote => {
-                    if brace_level > 0 {return Err(ParseError::Error(String::from("~")))}
-                    if prev_char == None || prev_char == Some(' ') {
+                    if brace_level > 0 {
+                        word.push(c);
+                    } else if prev_char == None || prev_char == Some(' ') {
                         push(&mut tokenvec, &mut word, c, 
                             in_dquote, in_squote, in_tilde, has_brace
                         );
