@@ -22,6 +22,7 @@ use crate::types::{
     JobTrack,
     UnwrapOr,
     JobStatus,
+    ShellError,
 };
 use crate::execute;
 use crate::parser::Lexer;
@@ -209,16 +210,21 @@ pub fn create_fd_from_file(dest: &str, to_append: bool) -> i32 {
 }
 
 #[allow(dead_code, unused_variables, unused_mut)]
-pub fn search_in_path() {
-    let mut path: Vec<String> = env::var("PATH")
+pub fn search_in_path(command: String) -> Result<bool, ShellError> {
+    let mut paths: Vec<PathBuf> = env::var("PATH")
         .unwrap_or(String::new())
         .split(":")
-        .map(|n| n.to_string())
+        .map(|n| PathBuf::from(n))
         .collect();
-    if path.is_empty() {
-        //return error!
+    if paths.is_empty() {
+        return Err(ShellError::from("Oyster: command `{}` not found"))
     }
+    for path in paths {
+        for item in std::fs::read_dir(path) {
 
+        }
+    }
+    Ok(true)
 }
 
 //steps:
@@ -489,7 +495,6 @@ pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, 
     }
     let mut outputs = Vec::<String>::new();
     for capture in captures {
-        println!("{}", capture);
         match Lexer::tokenize(capture).unwrap() {
             UnmatchedDQuote | UnmatchedSQuote | UnmatchedBQuote => {
                 eprintln!("error: unmatched quote");

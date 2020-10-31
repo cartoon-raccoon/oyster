@@ -1,4 +1,5 @@
 use std::fmt;
+use std::io;
 use std::collections::HashMap;
 use std::process;
 
@@ -144,6 +145,30 @@ impl From<nix::Error> for ShellError {
     }
 }
 
+impl From<io::Error> for ShellError {
+    fn from(error: io::Error) -> ShellError {
+        ShellError {
+            msg: error.to_string()
+        }
+    }
+}
+
+impl From<&str> for ShellError {
+    fn from(msg: &str) -> ShellError {
+        ShellError {
+            msg: String::from(msg)
+        }
+    }
+}
+
+// impl<E> From<E> for ShellError where E: Error  {
+//     fn from(msg: E) -> ShellError {
+//         ShellError {
+//             msg: String::from(msg.to_string())
+//         }
+//     }
+// }
+
 impl fmt::Display for ShellError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.msg)
@@ -160,7 +185,7 @@ pub enum Token {
     Brace(String),
     //Var(String),
     Pipe, //handled!
-    Pipe2, //handled!
+    Pipe2, //handled!;
     And, //handled!
     Or, //handled!
     Consec, //handled!
