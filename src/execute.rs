@@ -110,6 +110,8 @@ pub fn execute(
                 return Ok(CommandResult::from_status(status));
             }
             "which" => {
+                let status = which::run(cmd);
+                return Ok(CommandResult::from_status(status));
             }
             "eval" => {
             }
