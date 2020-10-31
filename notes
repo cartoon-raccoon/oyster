@@ -39,5 +39,13 @@ Char matching for cursor
     -> Down does nothing
 Break up the token parser function into smaller functions
     for the shell expansion to use part of the functionality
+instead of passing execute() a set of params, pass it a Context
+allowing execute() to run for different purposes, i.e. command substitution
+Implement process substitution
+Implement stdin redirection
+
 Fix escaping for $
-Add quote tracking for command substitution
+Globbing
+
+My preferred prompt:
+export OYSTER_PROMPT="{YELLOW_B}{USER}{RESET}: {BLUE}{CWD_FULL}{RESET}{NEWLINE}{COLOR_ST}❯{RESET} "
