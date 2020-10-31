@@ -4,6 +4,7 @@ use std::os::unix::io::{
     RawFd,
     FromRawFd,
 };
+use std::env;
 use std::process;
 use std::ffi::{CString, CStr};
 
@@ -14,19 +15,18 @@ use nix::unistd::{
     isatty,
     fork, 
     pipe, 
-    execvp, 
+    execve, 
     dup, dup2, 
     close,
     ForkResult
 };
 use nix::sys::signal::{signal, Signal, SigHandler};
-use nix::Result;
 use nix::Error;
 use nix::errno::Errno;
 
 use crate::types::*;
 use crate::jobc;
-use crate::shell::{self, Shell};
+use crate::shell::{self, Shell, search_in_path};
 use crate::builtins::*;
 
 /// Even lower level, it deconstructs the job
@@ -35,7 +35,7 @@ pub fn run_pipeline(
     shell: &mut Shell, 
     job: Job, 
     background: bool, 
-    capture: bool) -> Result<(bool, CommandResult)> {
+    capture: bool) -> Result<(bool, CommandResult), ShellError> {
     
     //defaults to return
     let mut term_given = false;
@@ -44,12 +44,7 @@ pub fn run_pipeline(
     //making vec of pipes
     let mut pipes = Vec::new();
     for _ in 0..job.cmds.len() - 1 {
-        match pipe() {
-            Ok(fdpair) => {
-                pipes.push(fdpair);
-            }
-            Err(e) => { return Err(e); }
-        }
+        pipes.push(pipe()?);
     }
 
     let isatty = isatty(1)?;
@@ -126,7 +121,7 @@ fn run_command(
     shell: &mut Shell,
     term_given: &mut bool,
     // for capturing output
-    results: &mut CommandResult,) -> Result<i32> {
+    results: &mut CommandResult,) -> Result<i32, ShellError> {
 
     let fds_capture_stdout = pipe()?;
     let fds_capture_stderr = pipe()?;
@@ -284,17 +279,28 @@ fn run_command(
                 _ => {}
             }
 
-            //TODO: Load in env vars
-            //TODO: Search in path
-            let c_cmd = CString::new(cmd.cmd.as_str())
-                .unwrap_or_exit("oyster: cstring error converting command", 5);
+            let c_cmd = if !cmd.cmd.contains("/") {
+                CString::new(
+                search_in_path(cmd.cmd.clone())
+                .unwrap_or_exit(&format!("oyster: command {} not found", cmd.cmd), 1)
+                .to_str().unwrap_or_exit("oyster: osstring conversion error", 5))
+                .unwrap_or_exit("oyster: cstring error converting command", 5)
+            } else {
+                CString::new(cmd.cmd)
+                .unwrap_or_exit("oyster: cstring error converting command", 5)
+            };
             let args: Vec<CString> = cmd.args.into_iter()
                 .map(|arg| {
                     CString::new(arg.as_str())
                         .unwrap_or_exit("oyster: cstring error parsing command arguments", 5)
-                }).collect();
+            }).collect();
+            let envs: Vec<CString> = env::vars().map(|(key, var)| {
+                CString::new(format!("{}={}", key, var))
+                    .unwrap_or_exit("oyster: cstring error parsing env vars", 5)
+            }).collect();
             let c_args: Vec<&CStr> = args.iter().map(|arg| arg.as_c_str()).collect();
-            match execvp(&c_cmd, &c_args) {
+            let c_envs: Vec<&CStr> = envs.iter().map(|env| env.as_c_str()).collect();
+            match execve(&c_cmd, &c_args, &c_envs) {
                 Ok(_) => {}
                 Err(e) => {
                     match e {
@@ -302,7 +308,7 @@ fn run_command(
                             eprintln!("oyster: exec format error");
                         }
                         Error::Sys(Errno::ENOENT) => {
-                            eprintln!("oyster: command {} not found", cmd.cmd);
+                            eprintln!("oyster: no such file in directory");
                         }
                         Error::Sys(Errno::EACCES) => {
                             eprintln!("oyster: permission denied");
@@ -328,7 +334,7 @@ fn run_command(
                 Ok(()) => {}
                 Err(e) => { 
                     eprintln!("Could not set child pgid from parent: {}", e); 
-                    return Err(e);
+                    return Err(e.into());
                 }
             }
 
@@ -338,7 +344,7 @@ fn run_command(
                     Ok(()) => {},
                     Err(e) => {
                         eprintln!("error {}: could not close pipe", e);
-                        return Err(e);
+                        return Err(e.into());
                     }
                 }
             }
