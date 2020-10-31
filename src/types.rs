@@ -161,6 +161,14 @@ impl From<&str> for ShellError {
     }
 }
 
+impl From<String> for ShellError {
+    fn from(msg: String) -> ShellError {
+        ShellError {
+            msg: msg
+        }
+    }
+}
+
 // impl<E> From<E> for ShellError where E: Error  {
 //     fn from(msg: E) -> ShellError {
 //         ShellError {
@@ -316,6 +324,20 @@ impl<T,E> UnwrapOr for Result<T,E> {
         match self {
             Ok(enclosed) => enclosed,
             Err(_) => {
+                eprintln!("{}", errmsg);
+                process::exit(code);
+            }
+        }
+    }
+}
+
+impl<T> UnwrapOr for Option<T> {
+    type Item = T;
+
+    fn unwrap_or_exit(self, errmsg: &str, code: i32) -> T {
+        match self {
+            Some(enclosed) => enclosed,
+            None => {
                 eprintln!("{}", errmsg);
                 process::exit(code);
             }

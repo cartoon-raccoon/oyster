@@ -209,22 +209,38 @@ pub fn create_fd_from_file(dest: &str, to_append: bool) -> i32 {
     file.into_raw_fd()
 }
 
-#[allow(dead_code, unused_variables, unused_mut)]
-pub fn search_in_path(command: String) -> Result<bool, ShellError> {
-    let mut paths: Vec<PathBuf> = env::var("PATH")
+pub fn search_in_path(command: String) -> Result<PathBuf, ShellError> {
+    //collecting all entries in $PATH
+    let paths: Vec<PathBuf> = env::var("PATH")
         .unwrap_or(String::new())
         .split(":")
         .map(|n| PathBuf::from(n))
         .collect();
     if paths.is_empty() {
-        return Err(ShellError::from("Oyster: command `{}` not found"))
+        return Err(ShellError::from("oyster: path is empty"))
     }
     for path in paths {
-        for item in std::fs::read_dir(path) {
-
+        //iterating over all the entries in the path
+        for item in std::fs::read_dir(path)? {
+            let item = item?;
+            //getting the file name of the entry path
+            if let Some(entry) = item.path().file_name() {
+                let entry = entry.to_str()
+                    .ok_or(ShellError::from("oyster: error converting filepaths"))?
+                    .to_string();
+                if entry == command {
+                    return Ok(item.path())
+                } else {
+                    continue
+                }
+            } else {
+                return Err(ShellError::from(
+                    format!("oyster: error")
+                ))
+            }
         }
     }
-    Ok(true)
+    Err(ShellError::from(format!("oyster: command `{}` not found", command)))
 }
 
 //steps:
@@ -537,6 +553,7 @@ pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::OsString;
 
     #[test]
     fn check_expand_vars() {
@@ -604,5 +621,20 @@ mod tests {
             &mut shell,
             &mut fail,
         ));
+    }
+    #[test]
+    fn check_path_searching() {
+        let command = OsString::from("cogsy");
+        assert_eq!(
+            OsString::from("/home/sammy/.cargo/bin/cogsy"), 
+            search_in_path(command.into_string()
+            .unwrap()).unwrap()
+        );
+        let command = OsString::from("pacman");
+        assert_eq!(
+            OsString::from("/usr/bin/pacman"),
+            search_in_path(command.into_string()
+            .unwrap()).unwrap()
+        )
     }
 }
