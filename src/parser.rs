@@ -5,8 +5,8 @@ use crate::types::{
     Cmd,
     Job,
     ParseError,
-    ParseResult,
     TokenizeResult,
+    ParseResult,
 };
 use crate::shell::{
     Shell,
@@ -336,6 +336,13 @@ impl Lexer {
                         }
                     }
                 }
+                '#' if !in_squote && !in_bquote && !has_brace => {
+                    if in_dquote {
+                        word.push(c);
+                    } else {
+                        break;
+                    }
+                }
                 _ => {
                     ignore_next = false;
                     word.push(c);
@@ -376,7 +383,7 @@ impl Lexer {
             }
         }
     
-        //println!("{:?}", tokenvec);
+        println!("{:?}", tokenvec);
         
         if in_bquote {
             return Ok(TokenizeResult::UnmatchedBQuote);
@@ -414,7 +421,7 @@ impl Lexer {
     }
 
     /// Splits command and parses special characters
-    pub fn parse_tokens(shell: &mut Shell, tokens: Vec<Token>) -> ParseResult {
+    pub fn parse_tokens(shell: &mut Shell, tokens: Vec<Token>) -> Result<Vec<Job>, ParseError> {
         
         let mut job_id = 1;
         let mut commandmap = Vec::<Vec<Token>>::new();
@@ -459,6 +466,8 @@ impl Lexer {
             let mut all_to_filename = false;
             let mut rd_to_filename = false;
             let mut rd_to_filedesc = false;
+
+            let mut cmd_idx = 0;
 
             //* accumulators
             let mut buffer = Vec::<String>::new();
@@ -594,15 +603,22 @@ impl Lexer {
                                     cmd: buffer[0].clone(),
                                     args: buffer.clone(),
                                     redirects: final_redirects,
-                                    capture_stdout: false,
                                     pipe_stderr: if pipe == Token::Pipe {false} else {true},
                                 }
                             );
                             buffer.clear();
                         }
                     }
-                    Token::Word(mut string) | 
-                    Token::DQuote(mut string)=> {
+                    Token::Word(mut string) => {
+                        expand_variables(shell, &mut string);
+                        if cmd_idx == 0 {
+                            if string == "for" {
+
+                            }
+                        }
+                        buffer.push(string);
+                    }
+                    Token::DQuote(mut string) => {
                         expand_variables(shell, &mut string);
                         buffer.push(string);
                     }
@@ -684,6 +700,7 @@ impl Lexer {
                         
                     }
                 }
+                cmd_idx += 1;
             }
             let mut final_redirects = 
                 Vec::<(String, Redirect, String)>::new();
@@ -704,7 +721,6 @@ impl Lexer {
                         cmd: buffer[0].clone(),
                         args: buffer.clone(),
                         redirects: final_redirects,
-                        capture_stdout: false,
                         pipe_stderr: false,
                     }
                 );
@@ -719,6 +735,7 @@ impl Lexer {
             );
             job_id += 1;
         }
+        println!("{:?}", jobs);
         Ok(jobs)
     }
 }

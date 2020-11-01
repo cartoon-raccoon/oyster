@@ -6,7 +6,6 @@ use std::process;
 use nix::unistd::Pid;
 
 pub const STOPPED: i32 = 127;
-pub type ParseResult = Result<Vec<Job>, ParseError>;
 
 pub enum TokenizeResult {
     UnmatchedDQuote,
@@ -48,6 +47,14 @@ impl fmt::Display for TokenizeResult {
             }
         }
     }
+}
+
+pub enum ParseResult {
+    For(Vec<Job>),
+    While(Vec<Job>),
+    If,
+    Case,
+    Good(Vec<Job>),
 }
 
 #[derive(Debug)]
@@ -216,7 +223,6 @@ pub struct Cmd {
     pub cmd: String,
     pub args: Vec<String>,
     pub redirects: Vec<(String, Redirect, String)>,
-    pub capture_stdout: bool,
     pub pipe_stderr: bool,
 }
 
