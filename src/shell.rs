@@ -209,7 +209,7 @@ pub fn create_fd_from_file(dest: &str, to_append: bool) -> i32 {
     file.into_raw_fd()
 }
 
-pub fn search_in_path(command: String) -> Result<PathBuf, ShellError> {
+pub fn search_in_path(command: &str) -> Result<PathBuf, ShellError> {
     //collecting all entries in $PATH
     let paths: Vec<PathBuf> = env::var("PATH")
         .unwrap_or(String::new())
@@ -226,8 +226,7 @@ pub fn search_in_path(command: String) -> Result<PathBuf, ShellError> {
             //getting the file name of the entry path
             if let Some(entry) = item.path().file_name() {
                 let entry = entry.to_str()
-                    .ok_or(ShellError::from("oyster: error converting filepaths"))?
-                    .to_string();
+                    .ok_or(ShellError::from("oyster: error converting filepaths"))?;
                 if entry == command {
                     return Ok(item.path())
                 } else {
@@ -480,7 +479,7 @@ pub fn replace_aliases(shell: &Shell, word: String) -> String {
 
 // This command is gonna be sooo fucking slow
 pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, CmdSubError> {
-    println!("{}", string);
+    //println!("{}", string);
     let mut stringchars = string.chars();
     let mut captures: Vec<String> = Vec::new();
     let mut rest: Vec<String> = Vec::new();
@@ -509,6 +508,7 @@ pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, 
             }
         }
     }
+    rest.push(word);
     let mut outputs = Vec::<String>::new();
     for capture in captures {
         match Lexer::tokenize(capture).unwrap() {
@@ -547,7 +547,7 @@ pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, 
         }
     }
 
-    Ok(string)
+    Ok(final_str)
 }
 
 #[cfg(test)]
@@ -627,13 +627,13 @@ mod tests {
         let command = OsString::from("cogsy");
         assert_eq!(
             OsString::from("/home/sammy/.cargo/bin/cogsy"), 
-            search_in_path(command.into_string()
+            search_in_path(command.to_str()
             .unwrap()).unwrap()
         );
         let command = OsString::from("pacman");
         assert_eq!(
             OsString::from("/usr/bin/pacman"),
-            search_in_path(command.into_string()
+            search_in_path(command.to_str()
             .unwrap()).unwrap()
         )
     }

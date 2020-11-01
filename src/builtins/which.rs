@@ -19,7 +19,7 @@ pub fn run(mut cmd: Cmd) -> i32 {
                 println!("{}: built in shell command", name);
             }
             _ => {
-                match search_in_path(arg.clone()) {
+                match search_in_path(&arg) {
                     Ok(path) => {
                         if let Some(pathname) = path.to_str() {
                             println!("{}", pathname);

@@ -259,6 +259,8 @@ fn run_command(
                     process::exit(status);
                 }
                 "which" => {
+                    let status = which::run(cmd);
+                    process::exit(status);
                 }
                 "eval" => {
                 }
@@ -281,7 +283,7 @@ fn run_command(
 
             let c_cmd = if !cmd.cmd.contains("/") {
                 CString::new(
-                search_in_path(cmd.cmd.clone())
+                search_in_path(&cmd.cmd)
                 .unwrap_or_exit(&format!("oyster: command {} not found", cmd.cmd), 1)
                 .to_str().unwrap_or_exit("oyster: osstring conversion error", 5))
                 .unwrap_or_exit("oyster: cstring error converting command", 5)
