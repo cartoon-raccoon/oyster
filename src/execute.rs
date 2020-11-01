@@ -1,13 +1,11 @@
 use nix::unistd::getpgid;
 
 use crate::types::{
-    Token, 
     Job, 
     Exec, 
     CommandResult,
     ShellError,
 };
-use crate::parser::Lexer;
 use crate::core;
 use crate::shell::{
     self, Shell
@@ -18,22 +16,20 @@ use crate::builtins::*;
 /// Parses tokens into jobs, performs expansion and executes them.
 pub fn execute_jobs(
     shell: &mut Shell, 
-    tokens: Vec<Token>, 
+    jobs: Vec<Job>, 
     capture: bool
 ) -> Result<(i32, String), ShellError> {
-    
-    let jobs = Lexer::parse_tokens(shell, tokens)?;
-    //println!("{:?}", jobs);
 
     let mut captured = String::new();
     let mut execif: Option<Exec>;
+    let mut result = CommandResult::new();
 
     for job in jobs {
         execif = job.execnext;
         if let Some(execcond) = execif {
             match execcond {
                 Exec::And => { //continue if last job succeeded
-                    let result = execute(shell, job, false, capture)?;
+                    result = execute(shell, job, false, capture)?;
                     captured.push_str(&result.stdout);
                     if result.status == 0 {
                         continue;
@@ -42,7 +38,7 @@ pub fn execute_jobs(
                     }
                 }
                 Exec::Or => { //continue if last job failed
-                    let result = execute(shell, job, false, capture)?; 
+                    result = execute(shell, job, false, capture)?; 
                     captured.push_str(&result.stdout);
                     if result.status != 0 {
                         continue;
@@ -51,23 +47,22 @@ pub fn execute_jobs(
                     }
                 }
                 Exec::Consec => { //unconditional execution
-                    let result = execute(shell, job, false, capture)?;
+                    result = execute(shell, job, false, capture)?;
                     captured.push_str(&result.stdout);
                     continue;
                 }
                 Exec::Background => { //run jobs asynchronously
-                    let result = execute(shell, job, true, capture)?;
+                    result = execute(shell, job, true, capture)?;
                     captured.push_str(&result.stdout);
                     continue;
                 }
             }
         } else { //if is None; this should only occur on the last job
-            let result = execute(shell, job, false, capture)?;
+            result = execute(shell, job, false, capture)?;
             captured.push_str(&result.stdout);
-            return Ok((result.status, captured));
         }
     }
-    Ok((0, captured))
+    Ok((result.status, captured))
 }
 
 /// Lower level control. Executes single pipeline.

@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         match lr.set_prompt(&prompt) {
             Ok(()) => {},
             Err(_) => {
-                eprintln!("Could not set prompt")
+                eprintln!("oyster: could not set prompt")
             }
         }
         let mut buffer = String::new();
@@ -54,6 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         match lr.read_line() {
             Ok(ReadResult::Input(line)) => {
                 buffer.push_str(&line);
+                buffer.push('\n');
             }
             Ok(ReadResult::Eof) => {
                 process::exit(100);
@@ -70,7 +71,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
         loop {
-            match Lexer::tokenize(buffer.trim().to_string()) {
+            match Lexer::tokenize(&buffer) {
                 Ok(result) => {
                     match result {
                         n@ UnmatchedDQuote | n@ UnmatchedSQuote | n@ UnmatchedBQuote |
@@ -88,7 +89,23 @@ fn main() -> Result<(), Box<dyn Error>> {
                             break;
                         }
                         Good(parsedtokens) => {
-                            match execute_jobs(&mut shell, parsedtokens, false) {
+                            let jobs = match Lexer::parse_tokens(&mut shell, parsedtokens) {
+                                //* this will return an enum in the future
+                                //* where it matches on user's first command
+                                //* i.e. on if, for, while; and waits for input
+                                //* in a similar manner to tokenize
+                                //* if the scripting keywords don't appear
+                                //* or the scripting construct is complete,
+                                //* it returns a Good enum and execution continues
+                                Ok(result) => result,
+                                Err(e) => {
+                                    eprintln!("{}", e);
+                                    last_status = 2;
+                                    buffer.clear();
+                                    break
+                                }
+                            };
+                            match execute_jobs(&mut shell, jobs, false) {
                                 Ok(result) => {
                                     last_status = result.0;
                                 }

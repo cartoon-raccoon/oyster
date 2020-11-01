@@ -511,7 +511,7 @@ pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, 
     rest.push(word);
     let mut outputs = Vec::<String>::new();
     for capture in captures {
-        match Lexer::tokenize(capture).unwrap() {
+        match Lexer::tokenize(&capture).unwrap() {
             UnmatchedDQuote | UnmatchedSQuote | UnmatchedBQuote => {
                 eprintln!("error: unmatched quote");
                 return Err(CmdSubError);
@@ -526,7 +526,14 @@ pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, 
             }
             Good(tokens) => {
                 // expand_variables(shell, &mut tokens);
-                match execute::execute_jobs(shell, tokens, true) {
+                let jobs = match Lexer::parse_tokens(shell, tokens) {
+                    Ok(result) => result,
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        return Err(CmdSubError);
+                    }
+                };
+                match execute::execute_jobs(shell, jobs, true) {
                     Ok(jobs) => {
                         outputs.push(jobs.1);
                     }

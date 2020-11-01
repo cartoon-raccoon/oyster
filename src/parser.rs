@@ -22,7 +22,7 @@ pub struct Lexer;
 impl Lexer {
 
     /// Tokenizes the &str into a Vec of tokens
-    pub fn tokenize(line: String) 
+    pub fn tokenize(line: &str) 
     -> Result<TokenizeResult, ParseError> {
 
         let mut line_iter = line.chars().peekable();
@@ -56,7 +56,7 @@ impl Lexer {
                 } else if has_brace {
                     elements.push(Token::Brace(charvec.clone()));
                 } else {
-                    elements.push(Token::Word(charvec.clone()));
+                    elements.push(Token::Word(charvec.trim().to_string()));
                 }
                 charvec.clear();
             } else {
@@ -67,8 +67,8 @@ impl Lexer {
         //* Phase 1: Tokenisation
         while let Some(c) = line_iter.next() {
             // println!("========================");
-            // println!("{:?}", c);
             // println!("{:?}", prev_char);
+            // println!("{:?}", c);
             // println!("{:?}", line_iter.peek());
             // println!("{:?}", word);
             // println!("{:?}", tokenvec);
@@ -229,7 +229,7 @@ impl Lexer {
                         word.push(c);
                     }
                 }
-                ';' if !in_squote && !in_bquote => {
+                ';' | '\n' if !in_squote && !in_bquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, in_tilde, has_brace
@@ -352,7 +352,7 @@ impl Lexer {
         }
 
         // filtering empty words
-        let tokenvec: Vec<Token> = tokenvec.into_iter()
+        let mut tokenvec: Vec<Token> = tokenvec.into_iter()
             .filter(|token| {
                 if let Token::Word(word) = token {
                     if word == "" {
@@ -370,6 +370,12 @@ impl Lexer {
                 true
             }).collect();
         
+        if let Some(token) = tokenvec.pop() {
+            if token != Token::Consec {
+                tokenvec.push(token);
+            }
+        }
+    
         //println!("{:?}", tokenvec);
         
         if in_bquote {
@@ -409,7 +415,7 @@ impl Lexer {
 
     /// Splits command and parses special characters
     pub fn parse_tokens(shell: &mut Shell, tokens: Vec<Token>) -> ParseResult {
-
+        
         let mut job_id = 1;
         let mut commandmap = Vec::<Vec<Token>>::new();
         let mut buffer: Vec<Token> = Vec::new();
@@ -437,7 +443,17 @@ impl Lexer {
         //building job set
         let mut jobs = Vec::<Job>::new();
 
-        for mut tokengrp in commandmap.clone() {
+        match commandmap[0][0] {
+            Token::And => {return Err(ParseError::StartsOnAnd);}
+            Token::Or => {return Err(ParseError::StartsOnOr);}
+            Token::Consec => {return Err(ParseError::StartsOnConsec);}
+            Token::Pipe | Token::Pipe2 => {
+                return Err(ParseError::PipeMismatch);
+            }
+            _ => {}
+        }
+
+        for mut tokengrp in commandmap {
 
             //* trackers
             let mut all_to_filename = false;
@@ -453,28 +469,18 @@ impl Lexer {
             let mut cmds = Vec::<Cmd>::new();
             let mut execif = None;
             
-            match commandmap[0][0] {
-                Token::And => {return Err(ParseError::StartsOnAnd);}
-                Token::Or => {return Err(ParseError::StartsOnOr);}
-                Token::Consec => {return Err(ParseError::StartsOnConsec);}
-                Token::Pipe | Token::Pipe2 => {
-                    return Err(ParseError::PipeMismatch);
-                }
-                _ => {}
-            }
-
             // alias expansion here, first word in group
             if let Token::Word(string) = &tokengrp[0] {
                 if shell.has_alias(string) {
                     let string2 = string.clone();
                     let mut tail = tokengrp.split_off(0);
                     tail.remove(0);
-                    let tokens = replace_aliases(shell, string2);
+                    let replacement = replace_aliases(shell, string2);
 
                     //aliasing only works if the alias value is a valid command
                     //so we don't have to match all cases here
                     if let TokenizeResult::Good(tokens) = 
-                        Lexer::tokenize(tokens).unwrap() {
+                        Lexer::tokenize(&replacement)? {
                         tokengrp.extend(tokens);
                         tokengrp.extend(tail);
                     }
