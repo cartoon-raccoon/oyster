@@ -5,6 +5,11 @@ use std::process;
 
 use nix::unistd::Pid;
 
+use crate::shell::{
+    Shell,
+    expand_variables,
+};
+
 pub const STOPPED: i32 = 127;
 
 pub enum TokenizeResult {
@@ -218,6 +223,21 @@ pub enum Redirect { //* Origin is always a file descriptor
     Append,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Quote {
+    NQuote,
+    DQuote,
+    SQuote,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TokenCmd {
+    pub cmd: (Quote, String),
+    pub args: Vec<(Quote, String)>,
+    pub redirects: Vec<(String, Redirect, String)>,
+    pub pipe_stderr: bool,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cmd {
     pub cmd: String,
@@ -226,9 +246,35 @@ pub struct Cmd {
     pub pipe_stderr: bool,
 }
 
+impl Cmd {
+    pub fn from_tokencmd(shell: &mut Shell, mut cmd: TokenCmd) -> Self {
+        match cmd.cmd.0 {
+            Quote::NQuote | Quote::DQuote => {
+                expand_variables(shell, &mut cmd.cmd.1);
+            }
+            Quote::SQuote => {}
+        }
+        let newargs: Vec<String> = cmd.args.into_iter().map(|(quote, mut string)| {
+            match quote {
+                Quote::NQuote | Quote::DQuote => {
+                    expand_variables(shell, &mut string);
+                }
+                Quote::SQuote => {}
+            }
+            string
+        }).collect();
+        Cmd {
+            cmd: cmd.cmd.1,
+            args: newargs,
+            redirects: cmd.redirects,
+            pipe_stderr: cmd.pipe_stderr
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Job {
-    pub cmds: Vec<Cmd>,
+    pub cmds: Vec<TokenCmd>,
     pub execnext: Option<Exec>,
     pub id: i32,
 }

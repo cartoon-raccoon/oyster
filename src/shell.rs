@@ -23,6 +23,7 @@ use crate::types::{
     UnwrapOr,
     JobStatus,
     ShellError,
+    Quote,
 };
 use crate::execute;
 use crate::parser::Lexer;
@@ -447,11 +448,11 @@ mod brace_expansion {
 }
 
 //TODO
-pub fn expand_braces(shell: &mut Shell, mut string: String) 
--> Vec<String> {
-    expand_variables(shell, &mut string);
+pub fn expand_braces(string: String) 
+-> Vec<(Quote, String)> {
     let output = brace_expansion::tokenize(&string);
-    brace_expansion::output(output)
+    brace_expansion::output(output).into_iter()
+    .map(|string| (Quote::NQuote, string)).collect()
 }
 
 //TODO: file globbing, env expansion

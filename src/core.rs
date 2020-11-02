@@ -33,7 +33,8 @@ use crate::builtins::*;
 /// and passes raw parameters to the final function.
 pub fn run_pipeline(
     shell: &mut Shell, 
-    job: Job, 
+    job_id: i32,
+    cmds: Vec<Cmd>,
     background: bool, 
     capture: bool) -> Result<(bool, CommandResult), ShellError> {
     
@@ -43,7 +44,7 @@ pub fn run_pipeline(
 
     //making vec of pipes
     let mut pipes = Vec::new();
-    for _ in 0..job.cmds.len() - 1 {
+    for _ in 0..cmds.len() - 1 {
         pipes.push(pipe()?);
     }
 
@@ -53,7 +54,7 @@ pub fn run_pipeline(
     let mut idx: usize = 0;
     let mut children = Vec::new();
 
-    for cmd in job.cmds {
+    for cmd in cmds {
 
         let params = CommandParams{
             isatty: isatty,
@@ -63,7 +64,7 @@ pub fn run_pipeline(
         };
 
         let childpid = run_command(
-            job.id,
+            job_id,
             cmd, 
             idx, 
             &mut pgid,
@@ -105,7 +106,7 @@ pub fn run_pipeline(
     }
     
     if status == STOPPED {
-        jobc::mark_job_as_stopped(shell, job.id);
+        jobc::mark_job_as_stopped(shell, job_id);
     }
     Ok((term_given, cmdresult))
 }

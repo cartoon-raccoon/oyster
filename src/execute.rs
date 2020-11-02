@@ -2,6 +2,7 @@ use nix::unistd::getpgid;
 
 use crate::types::{
     Job, 
+    Cmd,
     Exec, 
     CommandResult,
     ShellError,
@@ -74,8 +75,12 @@ pub fn execute(
     capture: bool,
 ) -> Result<CommandResult, ShellError> {
 
-    if job.cmds.len() == 1 { //no pipeline
-        let mut cmd = job.cmds[0].clone();
+    let cmds: Vec<Cmd> = job.cmds.iter().map(|cmd| {
+        Cmd::from_tokencmd(shell, cmd.clone())
+    }).collect();
+
+    if cmds.len() == 1 { //no pipeline
+        let mut cmd = cmds[0].clone();
         if shell::assign_variables(shell, &mut cmd.cmd) {
             return Ok(CommandResult::new());
         }
@@ -128,7 +133,9 @@ pub fn execute(
         }
     }
     
-    let (given, result) = core::run_pipeline(shell, job, background, capture)?;
+    let (given, result) = core::run_pipeline(
+        shell, job.id, cmds, background, capture
+    )?;
     if given {
         let pgid = getpgid(None)?;
         shell::give_terminal_to(pgid)?;

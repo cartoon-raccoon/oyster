@@ -2,11 +2,12 @@ use crate::types::{
     Redirect,
     Exec,
     Token,
-    Cmd,
+    TokenCmd,
     Job,
     ParseError,
     TokenizeResult,
     ParseResult,
+    Quote,
 };
 use crate::shell::{
     Shell,
@@ -383,7 +384,7 @@ impl Lexer {
             }
         }
     
-        println!("{:?}", tokenvec);
+        //println!("{:?}", tokenvec);
         
         if in_bquote {
             return Ok(TokenizeResult::UnmatchedBQuote);
@@ -470,12 +471,12 @@ impl Lexer {
             let mut cmd_idx = 0;
 
             //* accumulators
-            let mut buffer = Vec::<String>::new();
+            let mut buffer = Vec::<(Quote, String)>::new();
             let mut redirect = [String::new(), String::new(), String::new()];
             let mut redirects = Vec::<[String; 3]>::new();
 
             //* building job from these
-            let mut cmds = Vec::<Cmd>::new();
+            let mut cmds = Vec::<TokenCmd>::new();
             let mut execif = None;
             
             // alias expansion here, first word in group
@@ -599,7 +600,7 @@ impl Lexer {
                             return Err(ParseError::EmptyCommand);
                         } else {
                             cmds.push(
-                                Cmd {
+                                TokenCmd {
                                     cmd: buffer[0].clone(),
                                     args: buffer.clone(),
                                     redirects: final_redirects,
@@ -609,26 +610,24 @@ impl Lexer {
                             buffer.clear();
                         }
                     }
-                    Token::Word(mut string) => {
-                        expand_variables(shell, &mut string);
+                    Token::Word(string) => {
                         if cmd_idx == 0 {
                             if string == "for" {
 
                             }
                         }
-                        buffer.push(string);
+                        buffer.push((Quote::NQuote, string));
                     }
-                    Token::DQuote(mut string) => {
-                        expand_variables(shell, &mut string);
-                        buffer.push(string);
+                    Token::DQuote(string) => {
+                        buffer.push((Quote::DQuote, string));
                     }
                     Token::SQuote(string) => {
-                        buffer.push(string);
+                        buffer.push((Quote::SQuote, string));
                     }
                     Token::BQuote(string) => {
                         match substitute_commands(shell, string) {
                             Ok(string) => {
-                                buffer.push(string);
+                                buffer.push((Quote::NQuote, string));
                             }
                             Err(e) => {
                                 eprintln!("{}", e);
@@ -637,13 +636,13 @@ impl Lexer {
                         }
                     }
                     Token::Brace(string) => {
-                        let expanded = expand_braces(shell, string);
+                        let expanded = expand_braces(string);
                         buffer.extend(expanded);
                     }
                     Token::Tilde(mut string) => {
                         expand_tilde(&mut string);
                         expand_variables(shell, &mut string);
-                        buffer.push(string);
+                        buffer.push((Quote::NQuote, string));
                     }
                     rd @ Token::Redirect |
                     rd @ Token::RDAppend |
@@ -656,9 +655,9 @@ impl Lexer {
                             rd_to_filename = true;
                         }
                         if let Some(fd) = buffer.pop() {
-                            if fd == "2" || fd == "1" {
+                            if fd.1 == "2" || fd.1 == "1" {
                                 //origin is file descriptor
-                                redirect[0] = fd;
+                                redirect[0] = fd.1;
                                 redirect[1] = if rd == Token::RDAppend {
                                     String::from(">>")
                                 } else {
@@ -717,7 +716,7 @@ impl Lexer {
                 return Err(ParseError::EmptyCommand);
             } else {
                 cmds.push(
-                    Cmd {
+                    TokenCmd {
                         cmd: buffer[0].clone(),
                         args: buffer.clone(),
                         redirects: final_redirects,
@@ -735,7 +734,7 @@ impl Lexer {
             );
             job_id += 1;
         }
-        println!("{:?}", jobs);
+        //println!("{:?}", jobs);
         Ok(jobs)
     }
 }
