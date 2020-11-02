@@ -46,13 +46,15 @@ pub struct Shell {
 
 impl Shell {
     pub fn new() -> Self {
+        let home = env::var("HOME").unwrap_or(String::new());
+        let pwd = env::var("PWD").unwrap_or(String::new());
         Shell {
             jobs: BTreeMap::new(),
             aliases: HashMap::new(),
             env: HashMap::new(),
             vars: HashMap::new(),
-            current_dir: PathBuf::new(),
-            prev_dir: PathBuf::new(),
+            current_dir: PathBuf::from(pwd),
+            prev_dir: PathBuf::from(home),
             pgid: 0,
             is_login: false,
         }
@@ -260,14 +262,25 @@ pub fn assign_variables(shell: &mut Shell, string: &mut String) -> bool {
     false
 }
 
-pub fn expand_tilde(string: &mut String) {  
-    let mut home = env::var("HOME").unwrap_or(String::new());
+pub fn expand_tilde(shell: &mut Shell, string: &mut String) {  
+    let home = env::var("HOME").unwrap_or(String::new());
     if home.is_empty() {
         eprintln!("oyster: env error, could not expand tilde");
         return;
     }
-    home.push_str(string);
-    *string = home;
+    if string.starts_with("~") {
+        if string.starts_with("~+") {
+            let pwd = shell.current_dir.to_str().unwrap_or("");
+            *string = string.replacen("~+", pwd, 1);
+        } else if string.starts_with("~-") {
+            let oldpwd = shell.prev_dir.to_str().unwrap_or("");
+            *string = string.replacen("~-", oldpwd, 1);
+        } else {
+            *string = string.replacen("~", &home, 1);
+        }
+    } else {
+        return;
+    }
 }
 
 //* I stole this from https://rosettacode.org/wiki/Brace_expansion#Rust

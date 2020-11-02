@@ -8,6 +8,7 @@ use nix::unistd::Pid;
 use crate::shell::{
     Shell,
     expand_variables,
+    expand_tilde,
 };
 
 pub const STOPPED: i32 = 127;
@@ -54,6 +55,7 @@ impl fmt::Display for TokenizeResult {
     }
 }
 
+#[allow(dead_code)] //TODO: Add this in
 pub enum ParseResult {
     For(Vec<Job>),
     While(Vec<Job>),
@@ -201,7 +203,6 @@ pub enum Token {
     SQuote(String),
     DQuote(String),
     BQuote(String),
-    Tilde(String),
     Brace(String),
     //Var(String),
     Pipe, //handled!
@@ -256,7 +257,11 @@ impl Cmd {
         }
         let newargs: Vec<String> = cmd.args.into_iter().map(|(quote, mut string)| {
             match quote {
-                Quote::NQuote | Quote::DQuote => {
+                Quote::NQuote => {
+                    expand_variables(shell, &mut string);
+                    expand_tilde(shell, &mut string);
+                }
+                Quote::DQuote => {
                     expand_variables(shell, &mut string);
                 }
                 Quote::SQuote => {}
