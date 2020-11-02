@@ -4,9 +4,9 @@ A simple (for now) UNIX shell written in Rust.
 
 Right now it implements pipelining and conditional execution, as well as command aliasing and command substitution. It can also expand `~` to the user's home directory and expand variables, as well as expanding braces recursively. Its prompt can also display the last exit status, username and current working directory.
 
-Right now, the most important things to implement are tab completion and accessing past commands using the up key, as well as `!!` expansion and reading from an RC file (to set aliases and the prompt).
+Right now, the most important things to implement are scripting, followed by tab completion and accessing past commands using the up key, as well as `!!` expansion and reading from an RC file (to set aliases and the prompt).
 
-SLOC Count: `2741`
+SLOC Count: `2973`
 
 The final capabilities of this shell are:
 - Pipelining, conditional execution, command substitution (Done)
