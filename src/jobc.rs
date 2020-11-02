@@ -12,7 +12,7 @@ use crate::shell::Shell;
 
 pub fn print_job(job: &JobTrack) {
     if job.background {
-        let to_print = format!("[{}] {} {} {}",
+        let to_print = format!("[{}] {} {} {}\n",
         job.id, job.pgid, job.firstcmd, job.status);
         write(1, to_print.as_bytes()).unwrap();
     }
