@@ -6,8 +6,6 @@ mod core;
 mod jobc;
 mod prompt;
 mod builtins;
-
-#[allow(dead_code, unused_variables)]
 mod scripting;
 
 use std::error::Error;

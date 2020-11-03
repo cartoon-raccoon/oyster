@@ -73,8 +73,8 @@ pub fn execute_jobs(
                 }
             }
             ExecType::Script(script) => {
-                println!("got script: {:#?}", script);
-                let script = Construct::build(script);
+                //println!("got script: {:?}", script);
+                let script = Construct::build(script)?;
                 result.status = script.execute(shell)?;
             }
         }
@@ -167,6 +167,7 @@ fn extract_constructs(jobs: Vec<Job>) -> Result<Vec<ExecType>, ShellError> {
     //tracks the top level of the shell construct
     let mut in_for = false;
     let mut in_if = false;
+    let mut nesting_level: isize = 0;
 
     for job in jobs {
         if job.cmds[0].cmd.0 == Quote::NQuote {
@@ -175,40 +176,32 @@ fn extract_constructs(jobs: Vec<Job>) -> Result<Vec<ExecType>, ShellError> {
                     if !in_if && !in_for {
                         in_for = true; 
                     }
+                    nesting_level += 1;
                 }
                 "if" => { 
                     if !in_if && !in_for {
                         in_if = true;
                     }
+                    nesting_level += 1;
                 }
-                "done" => {
-                    if in_for {
-                        in_for = false;
-                        buffer.push(job);
-                        to_return.push(ExecType::Script(buffer.clone()));
-                        buffer.clear();
-                        continue;
-                    }
-                }
-                "end" => {
-                    if in_if {
-                        in_if = false;
-                        buffer.push(job);
-                        to_return.push(ExecType::Script(buffer.clone()));
-                        buffer.clear();
-                        continue;
-                    }
+                "done" | "end" => {
+                    nesting_level -= 1;
                 }
                 _ => {}
             }
         }
         if in_if || in_for {
             buffer.push(job);
+            if nesting_level == 0 {
+                to_return.push(ExecType::Script(buffer.clone()));
+                buffer.clear();
+                in_for = false; in_if = false;
+            }
         } else {
             to_return.push(ExecType::Job(job));
         }
     }
-    if in_for || in_if {
+    if nesting_level > 0 {
         return Err(ShellError::from("oyster: parse error in script"))
     }
     Ok(to_return)
