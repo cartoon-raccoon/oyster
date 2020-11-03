@@ -361,6 +361,11 @@ pub enum Exec {
     Background,
 }
 
+pub enum ExecType {
+    Job(Job),
+    Script(Vec<Job>),
+}
+
 /// A trait to allow for graceful exiting on error instead of panicking.
 /// Used to save on match statements for matching results.
 pub trait UnwrapOr {
