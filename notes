@@ -9,7 +9,7 @@ Oyshter? (Ew)
 
 Built-in commands:
 cd *
-which 
+which *
 eval
 source
 export *
@@ -33,19 +33,43 @@ shell expansions
     -> button.{js, css} to button.js, button.css (done)
 
 Todo:
-Char matching for cursor
-    -> Up shows history
-    -> Left/Right moves cursor
-    -> Down does nothing
+Finish implementing scripting
+Implement history and completion
+Implement process substitution
+Implement stdin redirection
+Implement globbing
 Break up the token parser function into smaller functions
     for the shell expansion to use part of the functionality
 instead of passing execute() a set of params, pass it a Context
 allowing execute() to run for different purposes, i.e. command substitution
-Implement process substitution
-Implement stdin redirection
 
+Bugs:
 Fix escaping for $
-Globbing
+Fix newlines in command substitution
+Fix redirection order
 
 My preferred prompt:
 export OYSTER_PROMPT="{YELLOW_B}{USER}{RESET}: {BLUE}{CWD_FULL}{RESET}{NEWLINE}{COLOR_ST}❯{RESET} "
+
+Scripting constructs:
+Add a shell state - in loop (while waiting for new input)
+for and while trigger this state, exited with 'done'
+if and switch triggers if-state which lasts until done
+implement functions
+
+commands that trigger waiting -> ending word:
+function -> end
+if -> end
+else -> end
+elif -> end
+while -> done
+for -> done
+
+
+during startup, the shell needs to determine whether it is is interactive mode
+(implement this by looking at arguments)
+
+if not in interactive mode, must be in script execution mode
+script execution mode enforces the use of certain commands to indicate start and end of loops
+
+shell syntax
