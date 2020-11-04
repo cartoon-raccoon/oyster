@@ -18,6 +18,14 @@ pub fn run(mut cmd: Cmd) -> i32 {
             name @ "exit" => {
                 println!("{}: built in shell command", name);
             }
+            n@ "for" |
+            n@ "if" |
+            n@ "else" |
+            n@ "elif" |
+            n@ "end" |
+            n@ "done" => {
+                println!("{}: shell reserved word", n);
+            }
             _ => {
                 match search_in_path(&arg) {
                     Ok(path) => {

@@ -114,6 +114,10 @@ pub fn execute(
                 let status = fg::run(shell, cmd);
                 return Ok(CommandResult::from_status(status));
             }
+            "jobs" => {
+                let status = jobs::run(shell, cmd);
+                return Ok(CommandResult::from_status(status));
+            }
             "alias" => {
                 let status = alias::set(shell, cmd);
                 return Ok(CommandResult::from_status(status));
