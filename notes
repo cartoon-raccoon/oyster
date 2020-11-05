@@ -38,6 +38,16 @@ Implement history and completion
 Implement process substitution
 Implement stdin redirection
 Implement globbing
+Implement variable types using enums
+  - Ints
+  - Strings
+  - Arrays (add parenthesis detection to the parser)
+Add square bracket and parenthesis detection to parser
+For scripting:
+    Implement square bracket expansion (range) e.g. for i in [1..5]
+    Implement if (and comparison operators)
+    Implement case statement
+    Implement logical operators (OR, AND)
 Break up the token parser function into smaller functions
     for the shell expansion to use part of the functionality
 instead of passing execute() a set of params, pass it a Context
