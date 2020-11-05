@@ -6,7 +6,7 @@ Right now it implements pipelining and conditional execution, as well as command
 
 Right now, the most important things to implement are scripting, followed by tab completion and accessing past commands using the up key, as well as `!!` expansion and reading from an RC file (to set aliases and the prompt).
 
-SLOC Count: `3004`
+SLOC Count: `3301`
 
 The final capabilities of this shell are:
 - Pipelining, conditional execution, command substitution (Done)
