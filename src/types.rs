@@ -231,7 +231,13 @@ pub enum Quote {
     SQuote,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl Default for Quote {
+    fn default() -> Self {
+        Quote::NQuote
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct TokenCmd {
     pub cmd: (Quote, String),
     pub args: Vec<(Quote, String)>,
@@ -277,7 +283,7 @@ impl Cmd {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Job {
     pub cmds: Vec<TokenCmd>,
     pub execnext: Option<Exec>,

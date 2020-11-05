@@ -1,6 +1,6 @@
 //use std::collections::HashMap;
 
-use crate::types::{Job, ShellError};
+use crate::types::{Job, ShellError, Exec, TokenCmd};
 use crate::shell::Shell;
 use crate::execute::{
     execute_jobs,
@@ -22,7 +22,7 @@ use crate::execute::{
 /// 
 /// The leaf variant evaluates its own jobs and returns
 /// the exit status of the last command.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Construct {
     /// Represents a `for` loop
     For {
@@ -31,10 +31,9 @@ pub enum Construct {
         code: Vec<Box<Construct>>,
     },
     /// Represents an `if/elif/else` statement.
-    #[allow(dead_code)]
     If {
         conditions: Vec<Job>,
-        code: Vec<Box<Construct>>
+        code: Vec<Vec<Box<Construct>>>
     },
     /// The base case for everything.
     ///
@@ -52,6 +51,11 @@ impl Construct {
         //only need to split after matching, because build() receives
         //a single construct that may contain many constructs on the same scope
         //but deeper inside
+        if raw[0].execnext != Some(Exec::Consec) {
+            return Err(
+                ShellError::from("oyster: invalid delimiter")
+            )
+        }
         match raw[0].cmds[0].cmd.1.as_str() {
             "for" => {
                 if let Some(last) = raw.iter().last() {
@@ -93,7 +97,27 @@ impl Construct {
                 })
             }
             "if" => {
-                unimplemented!()
+                let mut final_code = Vec::new();
+                let mut conditions = Vec::new();
+                for (condition, jobs) in split_on_branches(raw)? {
+                    let mut code = Vec::new();
+                    if let Some(condition) = condition {
+                        conditions.push(condition);
+                    }
+                    for job in split_on_same_scope(jobs) {
+                        code.push(Box::new(Construct::build(job)?));
+                    }
+                    final_code.push(code);
+                }
+                Ok(Construct::If {
+                    conditions: conditions,
+                    code: final_code,
+                })
+            }
+            n@ "done" | n@ "end" | n@ "elif" | n@ "else" => {
+                return Err(
+                    ShellError::from(format!("oyster: parse error near {}", n))
+                )
             }
             _ => {
                 return Ok(Construct::Code(raw))
@@ -121,14 +145,19 @@ impl Construct {
                 Ok(status)
             }
             Construct::If {conditions, mut code} => {
+                let mut status: i32 = 0;
                 if code.is_empty() {
                     return Ok(0)
                 }
-                for condition in conditions.into_iter() {
+                //note: this isn't particularly efficient
+                for condition in conditions {
                     //for every if and elif
                     let to_exec = code.remove(0);
                     if exec(shell, condition, false, false)?.status == 0 {
-                        return to_exec.execute(shell)
+                        for job in to_exec {
+                            status = job.execute(shell)?;
+                        }
+                        return Ok(status)
                     }
                 }
                 //we have reached the else statement
@@ -136,13 +165,15 @@ impl Construct {
                 //if code is empty, there is no else clause
                 if code.len() == 1 {
                     let to_exec = code.remove(0);
-                    return to_exec.execute(shell)
+                    for job in to_exec {
+                        status = job.execute(shell)?;
+                    }
                 } else if code.len() > 1 {
                     return Err(
                         ShellError::from("error: code and condition mismatch")
                     )
                 }
-                Ok(0) //code is empty
+                Ok(status) //code is empty
             }
             //Base case
             Construct::Code(code) => {
@@ -156,17 +187,14 @@ impl Construct {
     }
 }
 
+/// Splits a single scope into its individual constructs
 fn split_on_same_scope(raw: Vec<Job>) -> Vec<Vec<Job>> {
     let mut to_return = Vec::new();
     let mut buffer = Vec::new();
     let mut nesting_level: usize = 0;
     for job in raw {
         match job.cmds[0].cmd.1.as_str() {
-            "for" => {
-                buffer.push(job);
-                nesting_level += 1;
-            }
-            "if" => { 
+            "for" | "if" => {
                 buffer.push(job);
                 nesting_level += 1;
             }
@@ -187,4 +215,100 @@ fn split_on_same_scope(raw: Vec<Job>) -> Vec<Vec<Job>> {
         to_return.push(buffer);
     }
     to_return
+}
+
+/// Splits an if statement into if/elif/else blocks
+//TODO: optimise this (i.e. remove clones `urgh`)
+fn split_on_branches(raw: Vec<Job>) 
+             //condition    codeblock  
+-> Result<Vec<(Option<Job>, Vec<Job>)>, ShellError> {
+    let mut to_return = Vec::new();
+    let mut buffer = Vec::new();
+    let mut nesting_level: isize = -1;
+    let mut condition = None;
+    for job in raw {
+        match job.cmds[0].cmd.1.as_str() {
+            "for" => {
+                buffer.push(job);
+                nesting_level += 1;
+            }
+            "if" => { 
+                nesting_level += 1;
+                if nesting_level == 0 {
+                    condition = Some(Job {
+                        cmds: vec![TokenCmd {
+                            cmd: job.cmds[0].args[1].clone(),
+                            args: job.cmds[0].args[1..].to_vec(),
+                            redirects: job.cmds[0].redirects.clone(),
+                            pipe_stderr: job.cmds[0].pipe_stderr,
+                        }],
+                        execnext: job.execnext,
+                        id: job.id,
+                    });
+                } else {
+                    buffer.push(job);
+                }
+            }
+            "elif" => {
+                if nesting_level == 0 {
+                    if job == Job::default() {
+                        return Err(
+                            ShellError::from(
+                                "oyster: syntax error near `elif`"
+                            )
+                        )
+                    }
+                    to_return.push(
+                        (condition.clone(), 
+                        buffer.clone()));
+                    buffer.clear();
+                    condition = Some(Job {
+                        cmds: vec![TokenCmd {
+                            cmd: job.cmds[0].args[1].clone(),
+                            args: job.cmds[0].args[1..].to_vec(),
+                            redirects: job.cmds[0].redirects.clone(),
+                            pipe_stderr: job.cmds[0].pipe_stderr,
+                        }],
+                        execnext: job.execnext,
+                        id: job.id,
+                    });
+                } else {
+                    buffer.push(job);
+                }
+            }
+            "else" => {
+                if nesting_level == 0 {
+                    to_return.push(
+                        (condition.clone(), 
+                        buffer.clone()));
+                    buffer.clear();
+                    condition = None;
+                } else {
+                    buffer.push(job);
+                }
+            }
+            "done" => {
+                buffer.push(job);
+                nesting_level -= 1;
+            }
+            "end" => {
+                if nesting_level == 0 {
+                    to_return.push((condition.clone(), buffer.clone()));
+                    buffer.clear();
+                }
+                nesting_level -= 1;
+            }
+            _ => {
+                buffer.push(job);
+            }
+        }
+    }
+    if nesting_level > 0 {
+        return Err(
+            ShellError::from("oyster: parse error in if statement")
+        )
+    }
+    //println!("{:?}", to_return);
+    
+    Ok(to_return)
 }
