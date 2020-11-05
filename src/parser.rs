@@ -267,10 +267,11 @@ impl Lexer {
                         word.push(c);
                     } else {
                         if has_brace && brace_level != 0 {
-                            if line_iter.peek() == Some(&'{')
-                            || line_iter.peek() == Some(&'}') {
-                                word.push(c);
-                            }
+                            // if line_iter.peek() == Some(&'{')
+                            // || line_iter.peek() == Some(&'}') {
+                            //     word.push(c);
+                            // }
+                            word.push(c);
                         }
                         if let Some(ch) = line_iter.next() {
                             word.push(ch);
