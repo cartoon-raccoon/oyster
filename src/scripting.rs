@@ -1,6 +1,12 @@
 //use std::collections::HashMap;
 
-use crate::types::{Job, ShellError, Exec, TokenCmd};
+use crate::types::{
+    Job, 
+    ShellError, 
+    Exec, 
+    TokenCmd,
+    Quote,
+};
 use crate::shell::Shell;
 use crate::execute::{
     execute_jobs,
@@ -32,7 +38,7 @@ pub enum Construct {
     },
     /// Represents an `if/elif/else` statement.
     If {
-        conditions: Vec<Job>,
+        conditions: Vec<(Job, bool)>,
         code: Vec<Vec<Box<Construct>>>
     },
     /// The base case for everything.
@@ -68,8 +74,8 @@ impl Construct {
                     }
                 }
                 raw.remove(len - 1);
-                let details = raw.remove(0).cmds.remove(0);
-                if details.args.len() < 5 {
+                let mut details = raw.remove(0).cmds.remove(0);
+                if details.args.len() < 4 {
                     return
                     Err(
                         ShellError::from("oyster: could not parse for loop")
@@ -80,6 +86,10 @@ impl Construct {
                     Err(
                         ShellError::from("oyster: invalid for loop syntax")
                     )
+                }
+                if details.args[3].0 == Quote::SqBrkt {
+                    let (_quote, to_expand) = details.args.remove(3);
+                    details.args.extend(expand_sqbrkt_range(to_expand)?);
                 }
                 //TODO: match on Quote type
                 let coden = split_on_same_scope(raw);
@@ -150,10 +160,11 @@ impl Construct {
                     return Ok(0)
                 }
                 //note: this isn't particularly efficient
-                for condition in conditions {
+                for (condition, execif) in conditions {
                     //for every if and elif
                     let to_exec = code.remove(0);
-                    if exec(shell, condition, false, false)?.status == 0 {
+                    //if execif is true, execute the code block
+                    if exec(shell, condition, false, false)?.status == 0 && execif {
                         for job in to_exec {
                             status = job.execute(shell)?;
                         }
@@ -185,6 +196,37 @@ impl Construct {
             }
         }
     }
+}
+
+fn expand_sqbrkt_range(brkt: String) -> Result<Vec<(Quote, String)>, ShellError> {
+    let range: Vec<&str> = brkt.split("..").filter(
+        |string| !string.is_empty()
+    ).collect();
+    if range.len() != 2 {
+        return Err(
+            ShellError::from("oyster: error expanding range")
+        )
+    }
+    let mut numeric = Vec::new();
+    for number in range {
+        match number.parse::<i32>() {
+            Ok(int) => {
+                numeric.push(int);
+            }
+            Err(_) => {
+                return Err(
+                    ShellError::from("oyster: non-integer character in range")
+                )
+            }
+        }
+    }
+    let (mut start, end) = (numeric[0], numeric[1]);
+    let mut to_return = Vec::new();
+    while start < end {
+        to_return.push((Quote::NQuote, start.to_string()));
+        start += 1;
+    }
+    Ok(to_return)
 }
 
 /// Splits a single scope into its individual constructs
@@ -219,10 +261,11 @@ fn split_on_same_scope(raw: Vec<Job>) -> Vec<Vec<Job>> {
 
 /// Splits an if statement into if/elif/else blocks
 //TODO: optimise this (i.e. remove clones `urgh`)
+//TODO2: Fix ! condition
 fn split_on_branches(raw: Vec<Job>) 
              //condition    codeblock  
--> Result<Vec<(Option<Job>, Vec<Job>)>, ShellError> {
-    let mut to_return = Vec::new();
+-> Result<Vec<(Option<(Job, bool)>, Vec<Job>)>, ShellError> {
+    let mut to_return = Vec::<(Option<(Job, bool)>, Vec<Job>)>::new();
     let mut buffer = Vec::new();
     let mut nesting_level: isize = -1;
     let mut condition = None;
@@ -235,16 +278,26 @@ fn split_on_branches(raw: Vec<Job>)
             "if" => { 
                 nesting_level += 1;
                 if nesting_level == 0 {
-                    condition = Some(Job {
+                    let command = if job.cmds[0].args[1].1.starts_with("!") {
+                        (
+                            job.cmds[0].args[1].0, 
+                            job.cmds[0].args[1].1[1..].to_string()
+                        )
+                    } else {
+                        job.cmds[0].args[1].clone()
+                    };
+                    condition = Some((Job {
                         cmds: vec![TokenCmd {
-                            cmd: job.cmds[0].args[1].clone(),
+                            cmd: command,
                             args: job.cmds[0].args[1..].to_vec(),
                             redirects: job.cmds[0].redirects.clone(),
                             pipe_stderr: job.cmds[0].pipe_stderr,
                         }],
                         execnext: job.execnext,
                         id: job.id,
-                    });
+                        },
+                        !job.cmds[0].args[1].1.starts_with("!"))
+                    );
                 } else {
                     buffer.push(job);
                 }
@@ -262,16 +315,26 @@ fn split_on_branches(raw: Vec<Job>)
                         (condition.clone(), 
                         buffer.clone()));
                     buffer.clear();
-                    condition = Some(Job {
+                    let command = if job.cmds[0].args[1].1.starts_with("!") {
+                        (
+                            job.cmds[0].args[1].0, 
+                            job.cmds[0].args[1].1[1..].to_string()
+                        )
+                    } else {
+                        job.cmds[0].args[1].clone()
+                    };
+                    condition = Some((Job {
                         cmds: vec![TokenCmd {
-                            cmd: job.cmds[0].args[1].clone(),
+                            cmd: command,
                             args: job.cmds[0].args[1..].to_vec(),
                             redirects: job.cmds[0].redirects.clone(),
                             pipe_stderr: job.cmds[0].pipe_stderr,
                         }],
                         execnext: job.execnext,
                         id: job.id,
-                    });
+                        },
+                        !job.cmds[0].args[1].1.starts_with("!"))
+                    );
                 } else {
                     buffer.push(job);
                 }

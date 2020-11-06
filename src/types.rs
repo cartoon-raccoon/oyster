@@ -13,6 +13,7 @@ use crate::shell::{
 
 pub const STOPPED: i32 = 127;
 
+/// The state of the tokenizer after parsing the current input
 pub enum TokenizeResult {
     UnmatchedDQuote,
     UnmatchedSQuote,
@@ -55,6 +56,8 @@ impl fmt::Display for TokenizeResult {
     }
 }
 
+/// The state of the parser after it finishes parsing the given input.
+/// Mainly used to detect incomplete scripting constructs.
 #[allow(dead_code)] //TODO: Add this in
 pub enum ParseResult {
     For(Vec<Job>),
@@ -64,6 +67,7 @@ pub enum ParseResult {
     Good(Vec<Job>),
 }
 
+/// A small error type for command substitution to return
 #[derive(Debug)]
 pub struct CmdSubError;
 
@@ -75,6 +79,7 @@ impl fmt::Display for CmdSubError {
     }
 }
 
+/// If the Lexer encounters an a pattern that it cannot interpret
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
     StartsOnAnd,
@@ -128,6 +133,7 @@ impl fmt::Display for ParseError {
     }
 }
 
+/// A generic error type for all error types to coerce to
 #[derive(Debug, Clone)]
 pub struct ShellError {
     msg: String,
@@ -197,6 +203,7 @@ impl fmt::Display for ShellError {
     }
 }
 
+/// The basic type that shell input is split into
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Word(String),
@@ -204,7 +211,7 @@ pub enum Token {
     DQuote(String),
     BQuote(String),
     Brace(String),
-    //Var(String),
+    SqBrkt(String),
     Pipe, //handled!
     Pipe2, //handled!;
     And, //handled!
@@ -218,17 +225,21 @@ pub enum Token {
     Background,
 }
 
+/// Produced during parsing, used as a redirect marker in Cmd
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Redirect { //* Origin is always a file descriptor
     Override,
     Append,
 }
 
+/// Produced during parsing, indicates how the string it comes with
+/// should be treated by `Cmd::from_tokencmd()`
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Quote {
     NQuote,
     DQuote,
     SQuote,
+    SqBrkt,
 }
 
 impl Default for Quote {
@@ -237,6 +248,7 @@ impl Default for Quote {
     }
 }
 
+/// Produced by `parse_tokens()`, it encodes the string type of the text
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TokenCmd {
     pub cmd: (Quote, String),
@@ -245,6 +257,7 @@ pub struct TokenCmd {
     pub pipe_stderr: bool,
 }
 
+/// The final data type sent to the core functions
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cmd {
     pub cmd: String,
@@ -254,12 +267,14 @@ pub struct Cmd {
 }
 
 impl Cmd {
+    /// Checks the quote type and acts on the quote accordingly
     pub fn from_tokencmd(shell: &mut Shell, mut cmd: TokenCmd) -> Self {
         match cmd.cmd.0 {
             Quote::NQuote | Quote::DQuote => {
                 expand_variables(shell, &mut cmd.cmd.1);
             }
             Quote::SQuote => {}
+            Quote::SqBrkt => {}
         }
         let newargs: Vec<String> = cmd.args.into_iter().map(|(quote, mut string)| {
             match quote {
@@ -271,6 +286,7 @@ impl Cmd {
                     expand_variables(shell, &mut string);
                 }
                 Quote::SQuote => {}
+                Quote::SqBrkt => {}
             }
             string
         }).collect();
@@ -283,6 +299,7 @@ impl Cmd {
     }
 }
 
+/// Emitted by `parse_tokens()`, its data is consumed by `execute_jobs()`
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Job {
     pub cmds: Vec<TokenCmd>,
@@ -290,6 +307,7 @@ pub struct Job {
     pub id: i32,
 }
 
+/// Used by the internal shell HashMap to track jobs in job control
 #[derive(Debug, Clone, PartialEq)]
 pub struct JobTrack {
     pub firstcmd: String,
@@ -374,7 +392,7 @@ pub enum ExecType {
 
 /// A trait to allow for graceful exiting on error instead of panicking.
 /// Used to save on match statements for matching results.
-pub trait UnwrapOr {
+pub(crate) trait UnwrapOr {
     type Item;
 
     /// Returns enclosed type if successful and exits with a 
