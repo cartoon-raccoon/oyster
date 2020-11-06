@@ -1,12 +1,20 @@
 # Oyster
 
-A simple (for now) UNIX shell written in Rust.
+A (relatively) simple UNIX shell written in Rust.
 
-Right now it implements pipelining and conditional execution, as well as command aliasing and command substitution. It can also expand `~` to the user's home directory and expand variables, as well as expanding braces recursively. Its prompt can also display the last exit status, username and current working directory.
+Right now it implements:
+- Pipelining and conditional execution
+- IO Redirection: stdout to file, stdin from file, etc.
+- Command aliasing and substitution
+- Tilde, variable and brace expansion
+- Filepath globbing detection and expansion
+- Basic scripting with for loops and if/elif/else statements
+    - For loops can do range and glob expansion
+- Customizable prompt with last exit indication, username and PWD
 
-Right now, the most important things to implement are scripting, followed by tab completion and accessing past commands using the up key, as well as `!!` expansion and reading from an RC file (to set aliases and the prompt).
+Right now, the most important things to implement are finishing scripting, followed by tab completion and accessing past commands using the up key, as well as `!!` expansion and reading from an RC file (to set aliases and the prompt).
 
-SLOC Count: `3301`
+SLOC Count: `3475`
 
 The final capabilities of this shell are:
 - Pipelining, conditional execution, command substitution (Done)
