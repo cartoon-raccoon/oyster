@@ -92,9 +92,10 @@ pub fn execute(
     capture: bool,
 ) -> Result<CommandResult, ShellError> {
 
-    let cmds: Vec<Cmd> = job.cmds.into_iter().map(|cmd| {
-        Cmd::from_tokencmd(shell, cmd)
-    }).collect();
+    let mut cmds: Vec<Cmd> = Vec::new();
+    for cmd in job.cmds {
+        cmds.push(Cmd::from_tokencmd(shell, cmd)?)
+    }
 
     if cmds.len() == 1 { //no pipeline
         let mut cmd = cmds[0].clone();
