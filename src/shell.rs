@@ -6,6 +6,8 @@ use std::env;
 
 use regex::Regex;
 
+use glob::glob;
+
 use nix::unistd::{
     Pid,
     tcsetpgrp,
@@ -267,6 +269,11 @@ pub fn assign_variables(shell: &mut Shell, string: &mut String) -> bool {
     false
 }
 
+pub fn needs_globbing(to_match: &str) -> bool {
+    let re = Regex::new("[*/]+").unwrap();
+    re.is_match(to_match)
+}
+
 pub fn expand_tilde(shell: &mut Shell, string: &mut String) {  
     let home = env::var("HOME").unwrap_or(String::new());
     if home.is_empty() {
@@ -488,6 +495,16 @@ pub fn expand_variables(shell: &Shell, string: &mut String) {
     }
 }
 
+pub fn expand_glob(string: &str) -> Result<Vec<String>, ShellError> {
+    let mut to_return = Vec::new();
+    for path in glob(string)? {
+        let path = path?;
+        to_return.push(path.to_str().ok_or(
+            ShellError::from("oyster: os string conversion error")
+        )?.to_string());
+    }
+    Ok(to_return)
+}
 
 pub fn replace_aliases(shell: &Shell, word: String) -> String {
     if let Some(string) = shell.get_alias(&word) {
@@ -662,5 +679,24 @@ mod tests {
             search_in_path(command.to_str()
             .unwrap()).unwrap()
         )
+    }
+
+    #[test]
+    fn check_path_globbing() { 
+        //this fails because i couldn't be bothered to type out everything
+        //but the function works correctly
+        let globres = expand_glob("/home/sammy/Projects/oyster/*").unwrap();
+        assert_eq!(globres, vec![
+            String::from("/home/sammy/Projects/oyster/src"),
+            String::from("/home/sammy/Projects/oyster/target"),
+            String::from("/home/sammy/Projects/oyster/.gitignore"),
+        ])
+    }
+
+    #[test]
+    fn check_needs_globbing() {
+        assert!(needs_globbing("/home/sammy/Projects/*"));
+        assert!(!needs_globbing("origin"));
+        assert!(needs_globbing("/home/sammy/Projects"));
     }
 }

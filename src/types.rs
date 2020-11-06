@@ -3,12 +3,17 @@ use std::io;
 use std::collections::HashMap;
 use std::process;
 
+use glob::{PatternError, GlobError};
+
 use nix::unistd::Pid;
 
 use crate::shell::{
     Shell,
     expand_variables,
     expand_tilde,
+    substitute_commands,
+    needs_globbing,
+    expand_glob,
 };
 
 pub const STOPPED: i32 = 127;
@@ -91,7 +96,6 @@ pub enum ParseError {
     InvalidRDSyntax,
     MetacharsInBrace,
     EmptyCommand,
-    GenericError,
 }
 
 impl std::error::Error for ParseError {}
@@ -126,15 +130,12 @@ impl fmt::Display for ParseError {
             ParseError::EmptyCommand => {
                 write!(f, "error: empty command")
             }
-            ParseError::GenericError => {
-                Ok(())
-            }
         }
     }
 }
 
 /// A generic error type for all error types to coerce to
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ShellError {
     msg: String,
 }
@@ -185,6 +186,22 @@ impl From<String> for ShellError {
     fn from(msg: String) -> ShellError {
         ShellError {
             msg: msg
+        }
+    }
+}
+
+impl From<PatternError> for ShellError {
+    fn from(_error: PatternError) -> ShellError {
+        ShellError {
+            msg: String::from("oyster: invalid glob pattern")
+        }
+    }
+}
+
+impl From<GlobError> for ShellError {
+    fn from(error: GlobError) -> ShellError {
+        ShellError {
+            msg: error.to_string()
         }
     }
 }
@@ -241,6 +258,7 @@ pub enum Quote {
     NQuote,
     DQuote,
     SQuote,
+    BQuote,
     SqBrkt,
 }
 
@@ -270,34 +288,64 @@ pub struct Cmd {
 
 impl Cmd {
     /// Checks the quote type and acts on the quote accordingly
-    pub fn from_tokencmd(shell: &mut Shell, mut cmd: TokenCmd) -> Self {
+    pub fn from_tokencmd(shell: &mut Shell, mut cmd: TokenCmd) -> Result<Self, ShellError> {
         match cmd.cmd.0 {
-            Quote::NQuote | Quote::DQuote => {
+            Quote::NQuote => {
                 expand_variables(shell, &mut cmd.cmd.1);
+                expand_tilde(shell, &mut cmd.cmd.1);
+            }
+            Quote::DQuote => {
+                expand_variables(shell, &mut cmd.cmd.1);
+            }
+            Quote::BQuote => {
+                match substitute_commands(shell, cmd.cmd.1) {
+                    Ok(string) => {
+                        cmd.cmd = (Quote::NQuote, string);
+                    }
+                    Err(e) => {
+                        return Err(e.into());
+                    }
+                }
             }
             Quote::SQuote => {}
             Quote::SqBrkt => {}
         }
-        let newargs: Vec<String> = cmd.args.into_iter().map(|(quote, mut string)| {
+        let mut newargs: Vec<String> = Vec::new(); 
+        for (quote, mut string) in cmd.args {
             match quote {
                 Quote::NQuote => {
                     expand_variables(shell, &mut string);
                     expand_tilde(shell, &mut string);
+                    if needs_globbing(&string) {
+                        newargs.extend(expand_glob(&string)?);
+                        continue;
+                    }
                 }
                 Quote::DQuote => {
                     expand_variables(shell, &mut string);
                 }
+                Quote::BQuote => {
+                    match substitute_commands(shell, string) {
+                        Ok(string) => {
+                            newargs.push(string);
+                            continue;
+                        }
+                        Err(e) => {
+                            return Err(e.into());
+                        }
+                    }
+                }
                 Quote::SQuote => {}
                 Quote::SqBrkt => {}
             }
-            string
-        }).collect();
-        Cmd {
+            newargs.push(string);
+        }
+        Ok(Cmd {
             cmd: cmd.cmd.1,
             args: newargs,
             redirects: cmd.redirects,
             pipe_stderr: cmd.pipe_stderr
-        }
+        })
     }
 }
 
