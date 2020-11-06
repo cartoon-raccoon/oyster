@@ -10,7 +10,6 @@ use crate::types::{
 };
 use crate::shell::{
     Shell,
-    substitute_commands,
     expand_variables,
     expand_braces,
     expand_tilde,
@@ -169,14 +168,14 @@ impl Lexer {
                         word.clear();
                     }
                 }
-                '[' if !in_dquote && !in_squote && !in_bquote => {
+                '[' if !in_dquote && !in_squote && !in_bquote 
+                    && prev_char == Some(' ') => {
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, has_brace
                     );
                     in_sqbrkt = true;
                 }
-                ']' if !in_squote && !in_bquote && !in_dquote
-                    && in_sqbrkt => {
+                ']' if !in_squote && !in_bquote && !in_dquote && in_sqbrkt => {
                     tokenvec.push(Token::SqBrkt(word.clone()));
                     word.clear();
                     in_sqbrkt = false;
@@ -656,15 +655,7 @@ impl Lexer {
                         buffer.push((Quote::SQuote, string));
                     }
                     Token::BQuote(string) => {
-                        match substitute_commands(shell, string) {
-                            Ok(string) => {
-                                buffer.push((Quote::NQuote, string));
-                            }
-                            Err(e) => {
-                                eprintln!("{}", e);
-                                return Err(ParseError::GenericError);
-                            }
-                        }
+                        buffer.push((Quote::BQuote, string));
                     }
                     Token::SqBrkt(string) => {
                         buffer.push((Quote::SqBrkt, string));
