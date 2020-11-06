@@ -208,6 +208,9 @@ fn run_command(
                     //but we need to emulate zsh's behaviour
                     //if we didn't catch this case, 
                     //1>&1 would redirect stdin to a file called "&1"
+                } else if redirect.2 == "0" && redirect.1 == Redirect::FromStdin {
+                    let fd = shell::open_file_as_fd(&redirect.0);
+                    dup2(fd, 0).unwrap_or_exit(FD_DUPLICATE_ERR, 3);
                 } else {
                     let to_append = redirect.1 == Redirect::Append;
                     let fd = shell::create_fd_from_file(&redirect.2, to_append);
@@ -246,6 +249,10 @@ fn run_command(
                 "fg" => {
                     let status = fg::run(shell, cmd);
                     process::exit(status);                
+                }
+                "jobs" => {
+                    let status = jobs::run(shell, cmd);
+                    process::exit(status);
                 }
                 "alias" => {
                     let status = alias::set(shell, cmd);

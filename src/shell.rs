@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-use std::collections::BTreeMap;
+use std::collections::{HashMap, BTreeMap};
 use std::path::PathBuf;
-use std::fs::OpenOptions;
+use std::fs::{OpenOptions, File};
 use std::os::unix::io::IntoRawFd;
 use std::env;
 
@@ -210,6 +209,12 @@ pub fn create_fd_from_file(dest: &str, to_append: bool) -> i32 {
     let file = file.create(true).open(dest)
         .unwrap_or_exit("oyster: could not create file", 3);
     file.into_raw_fd()
+}
+
+pub fn open_file_as_fd(dest: &str) -> i32 {
+    File::open(dest)
+    .unwrap_or_exit("oyster: could not open file", 3)
+    .into_raw_fd()
 }
 
 pub fn search_in_path(command: &str) -> Result<PathBuf, ShellError> {

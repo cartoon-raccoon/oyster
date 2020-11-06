@@ -220,6 +220,7 @@ pub enum Token {
     FileMarker,
     Redirect,
     RDAppend,
+    RDStdin,
     RDStdOutErr, //Always redirects to a file
     RDFileDesc,  //Redirects to a file descriptor
     Background,
@@ -230,6 +231,7 @@ pub enum Token {
 pub enum Redirect { //* Origin is always a file descriptor
     Override,
     Append,
+    FromStdin,
 }
 
 /// Produced during parsing, indicates how the string it comes with

@@ -194,7 +194,8 @@ impl Lexer {
                     has_brace = false;
                 },
                 '>' if line_iter.peek() == Some(&'&') 
-                    && !in_squote && !in_bquote && !in_sqbrkt => {
+                    && !in_squote && !in_bquote 
+                    && !in_sqbrkt && !in_dquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, has_brace
@@ -206,13 +207,26 @@ impl Lexer {
                     has_brace = false;
                 }
                 '>' if line_iter.peek() != Some(&'>') 
-                    && !in_squote && !in_bquote && !in_sqbrkt => {
+                    && !in_squote && !in_bquote 
+                    && !in_sqbrkt && !in_dquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, has_brace
                     );
                     if !in_dquote {
                         tokenvec.push(Token::Redirect);
+                        ignore_next = false;
+                    }
+                    has_brace = false;
+                },
+                '<' if !in_squote && !in_bquote 
+                    && !in_sqbrkt && !in_dquote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
+                    push(&mut tokenvec, &mut word, c, 
+                        in_dquote, in_squote, has_brace
+                    );
+                    if !in_dquote {
+                        tokenvec.push(Token::RDStdin);
                         ignore_next = false;
                     }
                     has_brace = false;
@@ -439,6 +453,7 @@ impl Lexer {
             let mut all_to_filename = false;
             let mut rd_to_filename = false;
             let mut rd_to_filedesc = false;
+            let mut rd_from_stdin = false;
 
             let mut cmd_idx = 0;
 
@@ -567,6 +582,36 @@ impl Lexer {
                             return Err(ParseError::InvalidFileRD);
                         }
                     }
+                } else if rd_from_stdin {
+                    match token {
+                        Token::Word(mut dest) => {
+                            expand_variables(shell, &mut dest);
+                            expand_tilde(shell, &mut dest);
+                            redirects.push([String::from(dest.clone()), 
+                                            String::from("<"), 
+                                            String::from("0")]);
+                            rd_from_stdin = false;
+                            continue;
+                        }
+                        Token::DQuote(mut dest) => {
+                            expand_variables(shell, &mut dest);
+                            redirects.push([String::from(dest.clone()), 
+                                            String::from("<"), 
+                                            String::from("0")]);
+                            rd_from_stdin = false;
+                            continue;
+                        }
+                        Token::SQuote(dest) => {
+                            redirects.push([String::from(dest.clone()), 
+                                            String::from("<"), 
+                                            String::from("0")]);
+                            rd_from_stdin = false;
+                            continue;
+                        }
+                        _ => {
+                            return Err(ParseError::InvalidFileRD);
+                        }
+                    }
                 }
                 match token {
                     pipe @ Token::Pipe | pipe @ Token::Pipe2 => {
@@ -575,7 +620,8 @@ impl Lexer {
                         for redirect in &redirects {
                             let redirecttype = 
                                 if redirect[1] == ">>" {Redirect::Append}
-                                else {Redirect::Override};
+                                else if redirect[1] == ">" {Redirect::Override}
+                                else {Redirect::FromStdin};
                             final_redirects.push((redirect[0].clone(), 
                                                   redirecttype, 
                                                   redirect[2].clone()));
@@ -665,6 +711,12 @@ impl Lexer {
                         rd_to_filename = false;
                         all_to_filename = true;
                     }
+                    Token::RDStdin => {
+                        rd_to_filedesc = false;
+                        rd_to_filename = false;
+                        all_to_filename = false;
+                        rd_from_stdin = true;
+                    }
                     //* if matching on these, they must be the last item
                     Token::And => {
                         execif = Some(Exec::And);
@@ -688,8 +740,9 @@ impl Lexer {
                 Vec::<(String, Redirect, String)>::new();
             for redirect in &redirects {
                 let redirecttype = 
-                    if redirect[1] == ">>" {Redirect::Append}
-                    else {Redirect::Override};
+                if redirect[1] == ">>" {Redirect::Append}
+                else if redirect[1] == ">" {Redirect::Override}
+                else {Redirect::FromStdin};
                 final_redirects.push((redirect[0].clone(), 
                                         redirecttype, 
                                         redirect[2].clone()));
