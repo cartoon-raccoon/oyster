@@ -36,15 +36,14 @@ Todo:
 Finish implementing scripting
 Implement history and completion
 Implement process substitution
-Implement stdin redirection
-Implement globbing
+Implement incomplete scripting construct detection in parser
+Implement git repo detection for prompt
 Implement variable types using enums
   - Ints
   - Strings
   - Arrays (add parenthesis detection to the parser)
-Add square bracket and parenthesis detection to parser
+Add parenthesis detection to parser
 For scripting:
-    Implement square bracket expansion (range) e.g. for i in [1..5]
     Implement if (and comparison operators)
     Implement case statement
     Implement logical operators (OR, AND)
