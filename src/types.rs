@@ -35,22 +35,22 @@ impl fmt::Display for TokenizeResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TokenizeResult::UnmatchedDQuote => {
-                write!(f, "dquote>")
+                write!(f, "DQuote>")
             }
             TokenizeResult::UnmatchedSQuote => {
-                write!(f, "quote>" )
+                write!(f, "Quote>" )
             }
             TokenizeResult::UnmatchedBQuote => {
-                write!(f, "bquote>")
+                write!(f, "BQuote>")
             }
             TokenizeResult::EndsOnAnd => {
-                write!(f, "cmdand>")
+                write!(f, "CmdAnd>")
             }
             TokenizeResult::EndsOnOr => {
-                write!(f, "cmdor>" )
+                write!(f, "CmdOr>" )
             }
             TokenizeResult::EndsOnPipe => {
-                write!(f, "pipe>"  )
+                write!(f, "Pipe>"  )
             }
             TokenizeResult::EmptyCommand => {
                 write!(f, "")
@@ -64,12 +64,12 @@ impl fmt::Display for TokenizeResult {
 
 /// The state of the parser after it finishes parsing the given input.
 /// Mainly used to detect incomplete scripting constructs.
-#[allow(dead_code)] //TODO: Add this in
+#[derive(Debug, Clone)]
 pub enum ParseResult {
-    For(Vec<Job>),
-    While(Vec<Job>),
+    For,
     If,
-    Case,
+    //While,
+    //Case,
     Good(Vec<Job>),
 }
 
@@ -82,6 +82,13 @@ impl std::error::Error for CmdSubError {}
 impl fmt::Display for CmdSubError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "oyster: parse error in command substitution")
+    }
+}
+
+impl From<ParseError> for CmdSubError {
+    fn from(error: ParseError) -> CmdSubError {
+        eprintln!("{}", error);
+        CmdSubError
     }
 }
 

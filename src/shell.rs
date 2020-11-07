@@ -30,7 +30,8 @@ use crate::execute;
 use crate::parser::Lexer;
 use crate::types::{
     CmdSubError,
-    TokenizeResult::*
+    TokenizeResult::*,
+    ParseResult,
 };
 
 #[derive(Clone, Debug)]
@@ -562,20 +563,15 @@ pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, 
             }
             Good(tokens) => {
                 // expand_variables(shell, &mut tokens);
-                let jobs = match Lexer::parse_tokens(shell, tokens) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        eprintln!("{}", e);
-                        return Err(CmdSubError);
-                    }
-                };
-                match execute::execute_jobs(shell, jobs, true) {
-                    Ok(jobs) => {
-                        outputs.push(jobs.1);
-                    }
-                    Err(e) => {
-                        eprintln!("error while executing: {}", e);
-                        return Err(CmdSubError);
+                if let ParseResult::Good(jobs) = Lexer::parse_tokens(shell, tokens)? {
+                    match execute::execute_jobs(shell, jobs, true) {
+                        Ok(jobs) => {
+                            outputs.push(jobs.1);
+                        }
+                        Err(e) => {
+                            eprintln!("error while executing: {}", e);
+                            return Err(CmdSubError);
+                        }
                     }
                 }
             }

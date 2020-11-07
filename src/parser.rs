@@ -5,6 +5,7 @@ use crate::types::{
     TokenCmd,
     Job,
     ParseError,
+    ParseResult,
     TokenizeResult,
     Quote,
 };
@@ -52,7 +53,11 @@ impl Lexer {
                 if has_brace {
                     elements.push(Token::Brace(charvec.clone()));
                 } else {
-                    elements.push(Token::Word(charvec.trim().to_string()));
+                    if !charvec.is_empty() {
+                        elements.push(
+                            Token::Word(charvec.trim().to_string())
+                        );
+                    }
                 }
                 charvec.clear();
             } else {
@@ -72,7 +77,6 @@ impl Lexer {
             // println!("In Dquote: {}", in_dquote);
             // println!("In Squote: {}", in_squote);
             // println!("Ignore:    {}", ignore_next);
-            // println!("In tilde:  {}", in_tilde);
             if ignore_next {
                 ignore_next = false;
                 prev_char = Some(c);
@@ -235,7 +239,8 @@ impl Lexer {
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, has_brace
                     );
-                    if !in_dquote {
+                    if let Some(&Token::Consec) = tokenvec.last() {
+                    } else {
                         tokenvec.push(Token::Consec);
                         ignore_next = false;
                     }
@@ -313,10 +318,14 @@ impl Lexer {
                     if prev_char != Some(' ') {
                         if !in_dquote {
                             if has_brace {
-                                tokenvec.push(Token::Brace(word.clone()));
-                                has_brace = false;
+                                if !word.is_empty() {
+                                    tokenvec.push(Token::Brace(word.clone()));
+                                    has_brace = false;
+                                }
                             } else {
-                                tokenvec.push(Token::Word(word.clone())); 
+                                if !word.is_empty() {
+                                    tokenvec.push(Token::Word(word.clone())); 
+                                }
                             }
                             word.clear();
                         } else {
@@ -341,24 +350,18 @@ impl Lexer {
         if brace_level > 0 || has_brace {
             tokenvec.push(Token::Brace(word));
         } else {
-            tokenvec.push(Token::Word(word));
+            if !word.is_empty() {
+                tokenvec.push(Token::Word(word));
+            }
         }
 
-        // filtering empty words
+        //filtering empty words
         let mut tokenvec: Vec<Token> = tokenvec.into_iter()
             .filter(|token| {
                 if let Token::Word(word) = token {
-                    if word == "" {
-                        return false
-                    } else {
-                        return true
-                    }
+                    return !word.is_empty()
                 } else if let Token::Brace(word) = token {
-                    if word == "" {
-                        return false
-                    } else {
-                        return true
-                    }
+                    return !word.is_empty()
                 }
                 true
             }).collect();
@@ -407,11 +410,14 @@ impl Lexer {
     }
 
     /// Splits command and parses special characters
-    pub fn parse_tokens(shell: &mut Shell, tokens: Vec<Token>) -> Result<Vec<Job>, ParseError> {
+    pub fn parse_tokens(shell: &mut Shell, tokens: Vec<Token>) 
+    -> Result<ParseResult, ParseError> {
         
         let mut job_id = 1;
         let mut commandmap = Vec::<Vec<Token>>::new();
         let mut buffer: Vec<Token> = Vec::new();
+
+        let mut stack: Vec<ParseResult> = Vec::new();
 
         //split token stream by command delimiters And, Or, Consec
         for token in tokens {
@@ -642,8 +648,30 @@ impl Lexer {
                     }
                     Token::Word(string) => {
                         if cmd_idx == 0 {
-                            if string == "for" {
+                            match string.as_str() {
+                                "for" => {
+                                    stack.push(ParseResult::For);
+                                }
+                                "if" => {
+                                    stack.push(ParseResult::If);
+                                }
+                                "done" => {
+                                    if let Some(&ParseResult::For)
+                                    = stack.iter().last() {
+                                        stack.pop();
+                                    } else {
+                                        //return error
+                                    }
+                                }
+                                "end" => {
+                                    if let Some(&ParseResult::If)
+                                    = stack.iter().last() {
+                                        stack.pop();
+                                    } else {
 
+                                    }
+                                }
+                                _ => {}
                             }
                         }
                         buffer.push((Quote::NQuote, string));
@@ -761,7 +789,13 @@ impl Lexer {
             );
             job_id += 1;
         }
+
         //println!("{:?}", jobs);
-        Ok(jobs)
+        if stack.is_empty() {
+            return Ok(ParseResult::Good(jobs))
+        } else {
+            // safe to unwrap because the stack is not empty
+            return Ok(stack.pop().unwrap())
+        }
     }
 }

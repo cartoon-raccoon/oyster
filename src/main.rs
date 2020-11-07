@@ -20,7 +20,10 @@ use linefeed::{
 };
 
 use parser::Lexer;
-use types::TokenizeResult::*;
+use types::{
+    TokenizeResult,
+    ParseResult,
+};
 use execute::*;
 use shell::Shell;
 
@@ -75,8 +78,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             match Lexer::tokenize(&buffer) {
                 Ok(result) => {
                     match result {
-                        n@ UnmatchedDQuote | n@ UnmatchedSQuote | n@ UnmatchedBQuote |
-                        n@ EndsOnAnd | n@ EndsOnOr | n@ EndsOnPipe => {
+                        n@ TokenizeResult::UnmatchedDQuote | 
+                        n@ TokenizeResult::UnmatchedSQuote | 
+                        n@ TokenizeResult::UnmatchedBQuote |
+                        n@ TokenizeResult::EndsOnAnd | 
+                        n@ TokenizeResult::EndsOnOr | 
+                        n@ TokenizeResult::EndsOnPipe => {
                             print!("{} ", n); io::stdout().flush().unwrap();
                             match io::stdin().read_line(&mut buffer) {
                                 Ok(_) => {},
@@ -85,19 +92,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 }
                             }
                         }
-                        EmptyCommand => {
+                        TokenizeResult::EmptyCommand => {
                             buffer.clear();
                             break;
                         }
-                        Good(parsedtokens) => {
+                        TokenizeResult::Good(parsedtokens) => {
                             let jobs = match Lexer::parse_tokens(&mut shell, parsedtokens) {
-                                //* this will return an enum in the future
-                                //* where it matches on user's first command
-                                //* i.e. on if, for, while; and waits for input
-                                //* in a similar manner to tokenize
-                                //* if the scripting keywords don't appear
-                                //* or the scripting construct is complete,
-                                //* it returns a Good enum and execution continues
                                 Ok(result) => result,
                                 Err(e) => {
                                     eprintln!("{}", e);
@@ -106,17 +106,30 @@ fn main() -> Result<(), Box<dyn Error>> {
                                     break
                                 }
                             };
-                            match execute_jobs(&mut shell, jobs, false) {
-                                Ok(result) => {
-                                    last_status = result.0;
+                            match jobs {
+                                n@ ParseResult::For | n@ ParseResult::If => {
+                                    print!("{:?} > ", n); io::stdout().flush().unwrap();
+                                    match io::stdin().read_line(&mut buffer) {
+                                        Ok(_) => {},
+                                        Err(_) => {
+                                            eprintln!("oyster: error reading to line");
+                                        }
+                                    }
                                 }
-                                Err(e) => {
-                                    eprintln!("{}", e.to_string());
-                                    last_status = 10;
+                                ParseResult::Good(jobs) => {
+                                    match execute_jobs(&mut shell, jobs, false) {
+                                        Ok(result) => {
+                                            last_status = result.0;
+                                        }
+                                        Err(e) => {
+                                            eprintln!("{}", e.to_string());
+                                            last_status = 10;
+                                        }
+                                    }
+                                    buffer.clear();
+                                    break;
                                 }
                             }
-                            buffer.clear();
-                            break;
                         }
                     }
                 }
