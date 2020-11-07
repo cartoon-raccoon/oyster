@@ -239,7 +239,7 @@ fn run_command(
 
             match cmd.cmd.as_str() {
                 "cd" => {
-                    let status = cd::run(shell, cmd);
+                    let status = cd::run(shell, cmd, false);
                     process::exit(status);
                 }
                 "bg" => {

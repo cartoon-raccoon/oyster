@@ -2,7 +2,7 @@ use std::env;
 use crate::types::Cmd;
 use crate::shell::Shell;
 
-pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
+pub fn run(shell: &mut Shell, mut cmd: Cmd, implicit: bool) -> i32 {
     if cmd.args.len() > 2 {
         eprintln!("cd: too many arguments");
         return 1;
@@ -12,9 +12,13 @@ pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
     }
     let cd_to: String;
     if cmd.args.len() == 1 {
-        cd_to = env::var("HOME").unwrap_or(String::new());
+        if !implicit {
+            cd_to = env::var("HOME").unwrap_or(String::new());
+        } else {
+            cd_to = cmd.args.remove(0);
+        }
     } else {
-        cd_to = cmd.args[1].clone();
+        cd_to = cmd.args.remove(1);
     }
     if cd_to.is_empty() {
         eprintln!("oyster: env error, cannot set home dir");

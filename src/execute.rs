@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use nix::unistd::getpgid;
 
 use crate::types::{
@@ -97,14 +99,24 @@ pub fn execute(
         cmds.push(Cmd::from_tokencmd(shell, cmd)?)
     }
 
+    if cmds.len() < 1 {
+        return Err(
+            ShellError::from("oyster: empty job")
+        )
+    }
+
     if cmds.len() == 1 { //no pipeline
         let mut cmd = cmds[0].clone();
         if shell::assign_variables(shell, &mut cmd.cmd) {
             return Ok(CommandResult::new());
         }
+        if Path::new(&cmd.cmd).is_dir() {
+            let status = cd::run(shell, cmd, true);
+            return Ok(CommandResult::from_status(status))
+        }
         match cmd.cmd.as_str() {
             "cd" => {
-                let status = cd::run(shell, cmd);
+                let status = cd::run(shell, cmd, false);
                 return Ok(CommandResult::from_status(status));
             }
             "bg" => {
