@@ -2,32 +2,36 @@
 
 A (relatively) simple UNIX shell written in Rust.
 
+This was borne out of a desire to understand process execution in Linux, and slowly evolved into what it is today.
+
+Trying to keep dependency count low, the only convenience crates used (as of now) are Regex and glob.
+
+SLOC Count: `3604`
+
 Right now it implements:
 - Pipelining and conditional execution
 - IO Redirection: stdout to file, stdin from file, etc.
 - Command aliasing and substitution
+- Job control; sending jobs to and from background
 - Tilde, variable and brace expansion
 - Filepath globbing detection and expansion
 - Basic scripting with for loops and if/elif/else statements
     - For loops can do range and glob expansion
+- Defining and calling functions
 - Customizable prompt with last exit indication, username and PWD
 
-Right now, the most important things to implement are finishing scripting, followed by tab completion and accessing past commands using the up key, as well as `!!` expansion and reading from an RC file (to set aliases and the prompt).
-
-SLOC Count: `3475`
-
-The final capabilities of this shell are:
-- Pipelining, conditional execution, command substitution (Done)
-- Command aliasing, variable, brace and tilde expansion (Done)
-- Command substitution (done) and process substitution
-- Stdin redirection and here documents/strings
-- Job control - sending jobs to background (Done)
-- Basic scripting (relies on bash/zsh to execute shell scripts)
+To implement:
+- Process substitution
+- Here documents/strings
+- Completions and history (including some command completion)
+- Script file interpretation (including rcfile reading)
+- Bangbang (`!!`) expansion to last command
+- Adding variables to scripting system
     - I'm learning about programming languages now, and I might choose to develop this into an entire custom scripting language sometime down the line.
-- Customizable prompt (oh-my-zsh/starship style) (half-done)
-    - Can display last exit status, pwd, git status, time, etcetc.
-- Nice-to-have builtins (history, env activation, etc)
-- Completions (including some command completion)
+- Additional if statement evaulation options, case statement
+- Additional prompt customizability (git status, active environments, etc)
+- Additional builtins (history, env activation, etc)
+
 See the notes file for more details.
 
 I hope to work on this until it's something that can actually replace Zsh as my daily driver shell.
