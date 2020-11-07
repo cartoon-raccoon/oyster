@@ -1,5 +1,8 @@
 use nix::unistd::{Pid, write};
-use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
+use nix::sys::{
+    wait::{waitpid, WaitPidFlag, WaitStatus},
+    signal::Signal,
+};
 use nix::Error;
 use nix::errno::Errno;
 
@@ -11,9 +14,11 @@ use crate::types::{
 use crate::shell::Shell;
 
 pub fn print_job(job: &JobTrack) {
+    let to_print = format!("[{}] {} {} {}\n",
+    job.id, job.pgid, job.firstcmd, job.status);
     if job.background {
-        let to_print = format!("[{}] {} {} {}\n",
-        job.id, job.pgid, job.firstcmd, job.status);
+        write(1, to_print.as_bytes()).unwrap();
+    } else if job.status == JobStatus::Signaled(Signal::SIGSEGV) {
         write(1, to_print.as_bytes()).unwrap();
     }
 }
@@ -39,9 +44,7 @@ pub fn cleanup_process(
     status: JobStatus) {
     if let Some(mut job) = shell.remove_pid_from_job(pid, pgid) {
         job.status = status;
-        if job.background {
-            print_job(&job);
-        }
+        print_job(&job);
     }
 }
 
@@ -81,8 +84,7 @@ pub fn wait_on_job(
                     status = STOPPED;
                 }
                 WaitStatus::Signaled(pid, signal, _cd) => {
-                    let reason = format!("Signaled: {:?}", signal);
-                    cleanup_process(shell, pid, pgid, JobStatus::Signaled(reason));
+                    cleanup_process(shell, pid, pgid, JobStatus::Signaled(signal));
                     status = signal as i32;
                 }
                 _ => {

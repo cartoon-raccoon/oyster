@@ -6,6 +6,7 @@ use std::process;
 use glob::{PatternError, GlobError};
 
 use nix::unistd::Pid;
+use nix::sys::signal::Signal;
 
 use crate::shell::{
     Shell,
@@ -373,7 +374,7 @@ pub enum JobStatus {
     Running,
     Completed(i32),
     Stopped,
-    Signaled(String),
+    Signaled(Signal),
 }
 
 impl fmt::Display for JobStatus {
@@ -388,8 +389,8 @@ impl fmt::Display for JobStatus {
             JobStatus::Stopped => {
                 write!(f, "Stopped")
             }
-            JobStatus::Signaled(string) => {
-                write!(f, "{}", string)
+            JobStatus::Signaled(signal) => {
+                write!(f, "{}", signal)
             }
         }
     }
