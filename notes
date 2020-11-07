@@ -36,7 +36,6 @@ Todo:
 Finish implementing scripting
 Implement history and completion
 Implement process substitution
-Implement incomplete scripting construct detection in parser
 Implement git repo detection for prompt
 Implement variable types using enums
   - Ints
@@ -54,7 +53,7 @@ allowing execute() to run for different purposes, i.e. command substitution
 
 Bugs:
 Fix escaping for $
-Fix newlines in command substitution
+Fix newlines in command substitution and dquote parsing
 Fix redirection order
 
 My preferred prompt:
