@@ -107,15 +107,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 }
                             };
                             match jobs {
-                                n@ ParseResult::For | n@ ParseResult::If => {
-                                    print!("{:?} > ", n); io::stdout().flush().unwrap();
-                                    match io::stdin().read_line(&mut buffer) {
-                                        Ok(_) => {},
-                                        Err(_) => {
-                                            eprintln!("oyster: error reading to line");
-                                        }
-                                    }
-                                }
                                 ParseResult::Good(jobs) => {
                                     match execute_jobs(&mut shell, jobs, false) {
                                         Ok(result) => {
@@ -128,6 +119,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                                     }
                                     buffer.clear();
                                     break;
+                                }
+                                n@ _ => {
+                                    print!("{:?} > ", n); io::stdout().flush().unwrap();
+                                    match io::stdin().read_line(&mut buffer) {
+                                        Ok(_) => {},
+                                        Err(_) => {
+                                            eprintln!("oyster: error reading to line");
+                                        }
+                                    }
                                 }
                             }
                         }

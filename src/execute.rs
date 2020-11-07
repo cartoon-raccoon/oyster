@@ -22,13 +22,35 @@ use crate::scripting::*;
 /// Parses tokens into jobs, performs expansion and executes them.
 pub fn execute_jobs(
     shell: &mut Shell, 
-    jobs: Vec<Job>, 
+    mut jobs: Vec<Job>, 
     capture: bool
 ) -> Result<(i32, String), ShellError> {
 
     let mut captured = String::new();
     let mut execif: Option<Exec>;
     let mut result = CommandResult::new();
+
+    if jobs[0].cmds[0].cmd.0 == Quote::NQuote {
+        if jobs[0].cmds[0].cmd.1.ends_with("()") {
+            let func_to_exec =
+                jobs[0].cmds[0].cmd.1.replace("()", "");
+            return shell.execute_func(&func_to_exec)
+        } else if jobs[0].cmds[0].cmd.1 == "func" {
+            if let Some(job) = jobs.last() {
+                if job.cmds[0].cmd.1 != "endfn" {
+                    return Err(
+                        ShellError::from("oyster: cannot parse function")
+                    )
+                }
+            }
+            let funcname = jobs.remove(0)
+                           .cmds.remove(0)
+                           .args.remove(1).1;
+            jobs.pop();
+            shell.insert_func(&funcname, jobs);
+            return Ok((0, String::new()))
+        }
+    }
 
     //if execute_jobs is called from scripting,
     //this should not return any shell constructs

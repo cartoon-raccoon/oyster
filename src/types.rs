@@ -68,6 +68,7 @@ impl fmt::Display for TokenizeResult {
 pub enum ParseResult {
     For,
     If,
+    Func,
     //While,
     //Case,
     Good(Vec<Job>),
@@ -103,6 +104,8 @@ pub enum ParseError {
     InvalidFileDesc,
     InvalidRDSyntax,
     MetacharsInBrace,
+    FuncInShellConst,
+    GenericError(String),
     EmptyCommand,
 }
 
@@ -134,6 +137,12 @@ impl fmt::Display for ParseError {
             },
             ParseError::MetacharsInBrace => {
                 write!(f, "error: metacharacters in brace")
+            }
+            ParseError::FuncInShellConst => {
+                write!(f, "error: cannot define function in shell construct")
+            }
+            ParseError::GenericError(string) => {
+                write!(f, "error: parse error near `{}`", string)
             }
             ParseError::EmptyCommand => {
                 write!(f, "error: empty command")

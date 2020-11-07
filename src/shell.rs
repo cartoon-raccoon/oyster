@@ -20,6 +20,7 @@ use nix::sys::signal::{
 };
 
 use crate::types::{
+    Job,
     JobTrack,
     UnwrapOr,
     JobStatus,
@@ -40,6 +41,7 @@ pub struct Shell {
     aliases: HashMap<String, String>,
     pub env: HashMap<String, String>,
     pub vars: HashMap<String, String>,
+    pub funcs: HashMap<String, Vec<Job>>,
     current_dir: PathBuf,
     prev_dir: PathBuf,
     pgid: i32,
@@ -55,6 +57,7 @@ impl Shell {
             aliases: HashMap::new(),
             env: HashMap::new(),
             vars: HashMap::new(),
+            funcs: HashMap::new(),
             current_dir: PathBuf::from(pwd),
             prev_dir: PathBuf::from(home),
             pgid: 0,
@@ -137,6 +140,19 @@ impl Shell {
                 job.background = true;
             }
         }
+    }
+    pub fn insert_func(&mut self, name: &str, jobs: Vec<Job>) {
+        self.funcs.insert(name.to_string(), jobs);
+    }
+    pub fn execute_func(&mut self, name: &str) -> Result<(i32, String), ShellError> {
+        let jobs_to_do: Vec<Job>;
+        if let Some(func) = &mut self.funcs.get(name) {
+            jobs_to_do = func.clone();
+        } else {
+            let msg = format!("oyster: no function `{}` found", name);
+            return Err(ShellError::from(msg))
+        }
+        execute::execute_jobs(self, jobs_to_do, false)
     }
     /// Called by the alias builtin.
     /// Adds an alias to the shell.

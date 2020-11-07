@@ -648,27 +648,45 @@ impl Lexer {
                     }
                     Token::Word(string) => {
                         if cmd_idx == 0 {
+                            //println!("{:?}", stack);
                             match string.as_str() {
+                                "func" => {
+                                    if !stack.is_empty() {
+                                        return Err(ParseError::FuncInShellConst)
+                                    }
+                                    stack.push(ParseResult::Func)
+                                }
                                 "for" => {
                                     stack.push(ParseResult::For);
                                 }
                                 "if" => {
                                     stack.push(ParseResult::If);
                                 }
-                                "done" => {
-                                    if let Some(&ParseResult::For)
-                                    = stack.iter().last() {
-                                        stack.pop();
+                                n@ "elif" | n@ "else" => {
+                                    if let Some(&ParseResult::If) = stack.last() {
                                     } else {
-                                        //return error
+                                        return Err(ParseError::GenericError(n.to_string()))
                                     }
                                 }
-                                "end" => {
-                                    if let Some(&ParseResult::If)
-                                    = stack.iter().last() {
+                                n@ "done" => {
+                                    if let Some(&ParseResult::For) = stack.last() {
                                         stack.pop();
                                     } else {
-
+                                        return Err(ParseError::GenericError(n.to_string()))
+                                    }
+                                }
+                                n@ "end" => {
+                                    if let Some(&ParseResult::If) = stack.last() {
+                                        stack.pop();
+                                    } else {
+                                        return Err(ParseError::GenericError(n.to_string()))
+                                    }
+                                }
+                                n@ "endfn" => {
+                                    if let Some(&ParseResult::Func) = stack.last() {
+                                        stack.pop();
+                                    } else {
+                                        return Err(ParseError::GenericError(n.to_string()))
                                     }
                                 }
                                 _ => {}
