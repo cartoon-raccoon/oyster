@@ -234,7 +234,8 @@ impl Lexer {
                     }
                     has_brace = false;
                 },
-                ';' | '\n' if !in_squote && !in_bquote && !in_sqbrkt => {
+                ';' | '\n' if !in_squote && !in_bquote 
+                    && !in_sqbrkt && !in_dquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, has_brace
