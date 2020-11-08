@@ -13,7 +13,7 @@ Oyster is mostly a small side project that I work on in my spare time, and has a
 
 ### Contents
 1. [Commands](commands.md)
-2. [Expansions](commands.md)
+2. [Expansions](expansions.md)
 3. [Job Control](jobcontrol.md)
 4. [Scripting](scripting.md)
 5. [Prompt](prompt.md)
