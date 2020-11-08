@@ -236,13 +236,18 @@ impl Construct {
 }
 
 fn expand_sqbrkt_range(brkt: String) -> Result<Vec<(Quote, String)>, ShellError> {
-    let range: Vec<&str> = brkt.split("..").filter(
+    let mut range: Vec<String> = brkt.split("..").filter(
         |string| !string.is_empty()
-    ).collect();
+    ).map(|string| string.to_string()).collect();
     if range.len() != 2 {
         return Err(
             ShellError::from("oyster: error expanding range")
         )
+    }
+    let up_to_equals = range[1].starts_with("=");
+    if up_to_equals {
+        let replace = range[1].replace("=", "");
+        range[1] = replace;
     }
     let mut numeric = Vec::new();
     for number in range {
@@ -262,6 +267,9 @@ fn expand_sqbrkt_range(brkt: String) -> Result<Vec<(Quote, String)>, ShellError>
     while start < end {
         to_return.push((Quote::NQuote, start.to_string()));
         start += 1;
+    }
+    if up_to_equals {
+        to_return.push((Quote::NQuote, end.to_string()));
     }
     Ok(to_return)
 }
