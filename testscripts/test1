@@ -1,0 +1,24 @@
+#test script
+
+func thing;
+        echo "in function"
+        cat ~/Documents/stallman
+endfn
+
+for i in [1..5]
+    echo hello;
+
+    if cat ~/Documents &> /dev/null;
+        echo "this shouldn't work";
+    elif cogsy query "Death of a Bachelor";
+        echo "got cogsy result";
+    else;
+        echo "shouldn't reach this";
+    end
+done;
+
+thing();
+
+cogsy update
+
+echo "done!"
