@@ -13,7 +13,6 @@ use crate::shell::{
     expand_variables,
     expand_tilde,
     substitute_commands,
-    needs_globbing,
     expand_glob,
 };
 
@@ -333,7 +332,7 @@ impl Cmd {
                 Quote::NQuote => {
                     expand_variables(shell, &mut string);
                     expand_tilde(shell, &mut string);
-                    if needs_globbing(&string) {
+                    if string.contains("*") {
                         newargs.extend(expand_glob(&string)?);
                         continue;
                     }

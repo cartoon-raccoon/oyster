@@ -1,5 +1,5 @@
 use std::collections::{HashMap, BTreeMap};
-use std::path::{PathBuf, Path};
+use std::path::PathBuf;
 use std::fs::{OpenOptions, File};
 use std::os::unix::io::IntoRawFd;
 use std::env;
@@ -300,11 +300,6 @@ pub fn assign_variables(shell: &mut Shell, string: &mut String) -> bool {
         return true;
     }
     false
-}
-
-pub fn needs_globbing(to_match: &str) -> bool {
-    let re = Regex::new("[*/]+").unwrap();
-    Path::new(to_match).exists() && re.is_match(to_match)
 }
 
 pub fn expand_tilde(shell: &mut Shell, string: &mut String) {  
@@ -719,12 +714,5 @@ mod tests {
             String::from("/home/sammy/Projects/oyster/target"),
             String::from("/home/sammy/Projects/oyster/.gitignore"),
         ])
-    }
-
-    #[test]
-    fn check_needs_globbing() {
-        assert!(needs_globbing("/home/sammy/Projects/*"));
-        assert!(!needs_globbing("origin"));
-        assert!(needs_globbing("/home/sammy/Projects"));
     }
 }
