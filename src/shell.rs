@@ -1,5 +1,5 @@
 use std::collections::{HashMap, BTreeMap};
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::fs::{OpenOptions, File};
 use std::os::unix::io::IntoRawFd;
 use std::env;
@@ -304,7 +304,7 @@ pub fn assign_variables(shell: &mut Shell, string: &mut String) -> bool {
 
 pub fn needs_globbing(to_match: &str) -> bool {
     let re = Regex::new("[*/]+").unwrap();
-    re.is_match(to_match)
+    Path::new(to_match).exists() && re.is_match(to_match)
 }
 
 pub fn expand_tilde(shell: &mut Shell, string: &mut String) {  
