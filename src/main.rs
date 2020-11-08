@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let lr = Interface::new("oyster")?;
-    let mut shell = Shell::new();
+    let mut shell = Shell::with_config("testconfig");
     let mut last_status: i32 = 0;
 
     let args: Vec<String> = env::args().collect();

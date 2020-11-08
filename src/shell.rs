@@ -34,6 +34,7 @@ use crate::types::{
     TokenizeResult::*,
     ParseResult,
 };
+use crate::scripting::execute_scriptfile;
 
 #[derive(Clone, Debug)]
 pub struct Shell {
@@ -191,9 +192,24 @@ impl Shell {
     }
     /// Loads in a config file and applies it to the shell.
     /// Internally calls the run_script function in execute.
-    #[allow(dead_code)] //TODO
-    pub fn with_config() {
-
+    pub fn with_config(filename: &str) -> Self {
+        let mut shell = Shell::new();
+        //todo FIXME: variables not registering with shell
+        for (var, value) in env::vars() {
+            shell.add_variable(&var, &value);
+        }
+        match execute_scriptfile(&mut shell, filename) {
+            Ok(status) => {
+                if status != 0 {
+                    eprintln!("oyster: error occurred while running rcfile");
+                }
+            },
+            Err(e) => {
+                eprintln!("{}", e);
+                eprintln!("oyster: cannot start shell with config");
+            }
+        }
+        shell
     }
 }
 
