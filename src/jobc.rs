@@ -14,11 +14,13 @@ use crate::types::{
 use crate::shell::Shell;
 
 pub fn print_job(job: &JobTrack) {
-    let to_print = format!("[{}] {} {} {}\n",
+    let to_print = format!("\n[{}] {} {} {}\n",
     job.id, job.pgid, job.firstcmd, job.status);
     if job.background {
         write(1, to_print.as_bytes()).unwrap();
     } else if job.status == JobStatus::Signaled(Signal::SIGSEGV) {
+        write(1, to_print.as_bytes()).unwrap();
+    } else if job.status == JobStatus::Stopped {
         write(1, to_print.as_bytes()).unwrap();
     }
 }
