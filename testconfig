@@ -1,3 +1,6 @@
+export EDITOR = "/usr/bin/nano"
+export VISUAL = "/usr/bin/nano"
+export OYSTER_PROMPT = "{YELLOW_B}[{HOST}] {USER}{RESET}: {BLUE}{CWD_FULL}{RESET}{NEWLINE}{COLOR_ST}❯{RESET} "
 
 alias zshconfig "nano ~/.zshrc"
 alias raccoonpi = "ssh pi@192.168.1.23"
