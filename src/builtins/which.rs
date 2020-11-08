@@ -23,6 +23,8 @@ pub fn run(mut cmd: Cmd) -> i32 {
             n@ "else" |
             n@ "elif" |
             n@ "end" |
+            n@ "func" |
+            n@ "endfn" |
             n@ "done" => {
                 println!("{}: shell reserved word", n);
             }
