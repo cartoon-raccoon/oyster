@@ -44,6 +44,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     if args.len() > 0 && args[0].starts_with('-') {
         shell.is_login = true;
     }
+    if args.len() >= 3 {
+        let mut counter = 0;
+        for arg in &args[2..] {
+            let varname = format!("{}", counter);
+            shell.add_variable(&varname, arg);
+            counter += 1;
+        }
+    }
     if args.len() > 1 {
         if args[1] == "-i" {
 

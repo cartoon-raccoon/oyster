@@ -1,0 +1,9 @@
+#!/home/sammy/Projects/oyster/target/debug/oyster
+
+func thing
+    echo $0
+    echo $1
+    echo $2
+endfn
+
+thing()
