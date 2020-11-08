@@ -26,6 +26,7 @@ use types::{
 };
 use execute::*;
 use shell::Shell;
+use scripting::execute_scriptfile;
 
 fn main() -> Result<(), Box<dyn Error>> {
     unsafe {
@@ -42,6 +43,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() > 0 && args[0].starts_with('-') {
         shell.is_login = true;
+    }
+    if args.len() > 1 {
+        if args[1] == "-i" {
+
+        } else {
+            let status = match execute_scriptfile(&mut shell, &args[1]) {
+                Ok(result) => result,
+                Err(e) => {
+                    eprintln!("{}", e);
+                    process::exit(10);
+                }
+            };
+            process::exit(status)
+        }
     }
     
     loop {

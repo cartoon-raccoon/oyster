@@ -1,11 +1,16 @@
 //use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
+use crate::parser::Lexer;
 use crate::types::{
     Job, 
     ShellError, 
     Exec, 
     TokenCmd,
     Quote,
+    TokenizeResult,
+    ParseResult,
 };
 use crate::shell::Shell;
 use crate::execute::{
@@ -13,6 +18,38 @@ use crate::execute::{
     execute as exec,
 };
 //TODO: Implement scoping; rn all variables have global scope
+
+pub fn execute_scriptfile(shell: &mut Shell, filename: &str) -> Result<i32, ShellError> {
+    let lines = BufReader::new(File::open(filename)?).lines();
+    let mut status: i32 = 0;
+    let mut buffer = String::new();
+    for line in lines {
+        let line = line?;
+        if line.is_empty() || line.starts_with("#") {
+            continue
+        }
+        buffer.push_str(line.trim());
+        buffer.push('\n');
+        let tokens = match Lexer::tokenize(&buffer)? {
+            TokenizeResult::Good(parsedtokens) => parsedtokens,
+            _ => {continue;}
+        };
+        let jobs = match Lexer::parse_tokens(shell, tokens)? {
+            ParseResult::Good(jobs) => jobs,
+            _ => {continue;}
+        };
+        match execute_jobs(shell, jobs, false) {
+            Ok(result) => {
+                status = result.0;
+                buffer.clear();
+            }
+            Err(e) => {
+                return Err(e)
+            }
+        }
+    }
+    Ok(status)
+}
 
 /// # Construct
 /// 
@@ -374,4 +411,18 @@ fn split_on_branches(raw: Vec<Job>)
     //println!("{:?}", to_return);
     
     Ok(to_return)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scriptfile_exec() {
+        let mut shell = Shell::new();
+        assert_eq!(
+            execute_scriptfile(&mut shell, "testscripts/test1").unwrap(),
+            0
+        )
+    }
 }
