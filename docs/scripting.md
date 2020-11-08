@@ -4,7 +4,7 @@ Like any self-respecting shell, Oyster provides a system for creating shell scri
 ### Scripting Constructs
 A scripting construct is a recursive data type represented by an enum in memory. It contains 3 variants: For, If and Code. The For and If variants contain another construct, effectively forming a recursive data type. This allows many constructs to be nested within a single construct, allowing for nested loops and if statements.
 
-The recursive nature of the construct lends itself to forming an Abstract Syntax Tree, which the interpreter traverses preorder. The Code variants of the construct are the leaves of the AST, containing the raw commands to execute. (see the [source code](src/scripting.rs) for details.)
+The recursive nature of the construct lends itself to forming an Abstract Syntax Tree, which the interpreter traverses preorder. The Code variants of the construct are the leaves of the AST, containing the raw commands to execute. (see the [source code](../src/scripting.rs) for details.)
 
 The shell parses construct keywords like any other command and job, they are simply detected before the jobs are passed to the executor, and the jobs making up the construct are extracted and parsed separately, which is then executed.
 
