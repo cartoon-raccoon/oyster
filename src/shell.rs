@@ -42,7 +42,7 @@ pub struct Shell {
     aliases: HashMap<String, String>,
     pub env: HashMap<String, String>,
     pub vars: HashMap<String, String>,
-    pub funcs: HashMap<String, Vec<Job>>,
+    pub funcs: HashMap<String, (Vec<Job>, u32)>,
     current_dir: PathBuf,
     prev_dir: PathBuf,
     pgid: i32,
@@ -142,13 +142,13 @@ impl Shell {
             }
         }
     }
-    pub fn insert_func(&mut self, name: &str, jobs: Vec<Job>) {
-        self.funcs.insert(name.to_string(), jobs);
+    pub fn insert_func(&mut self, name: &str, jobs: Vec<Job>, params: u32) {
+        self.funcs.insert(name.to_string(), (jobs, params));
     }
     pub fn execute_func(&mut self, name: &str) -> Result<(i32, String), ShellError> {
         let jobs_to_do: Vec<Job>;
         if let Some(func) = &mut self.funcs.get(name) {
-            jobs_to_do = func.clone();
+            jobs_to_do = func.0.clone();
         } else {
             let msg = format!("oyster: no function `{}` found", name);
             return Err(ShellError::from(msg))

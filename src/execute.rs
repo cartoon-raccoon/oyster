@@ -47,7 +47,7 @@ pub fn execute_jobs(
                            .cmds.remove(0)
                            .args.remove(1).1;
             jobs.pop();
-            shell.insert_func(&funcname, jobs);
+            shell.insert_func(&funcname, jobs, 0);
             return Ok((0, String::new()))
         }
     }
