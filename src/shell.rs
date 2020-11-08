@@ -42,7 +42,7 @@ pub struct Shell {
     aliases: HashMap<String, String>,
     pub env: HashMap<String, String>,
     pub vars: HashMap<String, String>,
-    pub funcs: HashMap<String, (Vec<Job>, u32)>,
+    pub funcs: HashMap<String, (Vec<Job>, Option<usize>)>,
     current_dir: PathBuf,
     prev_dir: PathBuf,
     pgid: i32,
@@ -142,18 +142,37 @@ impl Shell {
             }
         }
     }
-    pub fn insert_func(&mut self, name: &str, jobs: Vec<Job>, params: u32) {
+    pub fn insert_func(&mut self, name: &str, jobs: Vec<Job>, params: Option<usize>) {
         self.funcs.insert(name.to_string(), (jobs, params));
     }
-    pub fn execute_func(&mut self, name: &str) -> Result<(i32, String), ShellError> {
+    pub fn execute_func(&mut self, name: &str, params: Vec<String>) 
+    -> Result<(i32, String), ShellError> {
         let jobs_to_do: Vec<Job>;
-        if let Some(func) = &mut self.funcs.get(name) {
-            jobs_to_do = func.0.clone();
+        if let Some((func, paramscount)) = &mut self.funcs.get(name) {
+            jobs_to_do = func.clone();
+            if let Some(paramscount) = paramscount {
+                if paramscount != &params.len() {
+                    return Err(
+                        ShellError::from("oyster: function parameter mismatch")
+                    )
+                }
+            }
+            let mut counter = 0;
+            for param in params {
+                let varname = format!("f{}", counter);
+                self.add_variable(&varname, &param);
+                counter += 1;
+            }
+            let result = execute::execute_jobs(self, jobs_to_do, false);
+            for i in 0..counter + 1 {
+                let varname = format!("f{}", i);
+                self.remove_variable(&varname);
+            }
+            result
         } else {
             let msg = format!("oyster: no function `{}` found", name);
             return Err(ShellError::from(msg))
         }
-        execute::execute_jobs(self, jobs_to_do, false)
     }
     /// Called by the alias builtin.
     /// Adds an alias to the shell.
@@ -183,12 +202,17 @@ impl Shell {
     pub fn add_variable(&mut self, key: &str, value: &str) {
         self.vars.insert(key.to_string(), value.to_string());
     }
+    /// Gets the value of a variable from the shell without removing it.
     pub fn get_variable(&self, key: &str) -> Option<String> {
         if let Some(entry) = self.vars.get(key) {
             Some(entry.clone())
         } else {
             None
         }
+    }
+    /// Removes a variable from the shell.
+    pub fn remove_variable(&mut self, key: &str) -> Option<String> {
+        self.vars.remove(key)
     }
     /// Loads in a config file and applies it to the shell.
     /// Internally calls the run_script function in execute.

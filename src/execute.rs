@@ -34,7 +34,34 @@ pub fn execute_jobs(
         if jobs[0].cmds[0].cmd.1.ends_with("()") {
             let func_to_exec =
                 jobs[0].cmds[0].cmd.1.replace("()", "");
-            return shell.execute_func(&func_to_exec)
+            let mut func_args = Vec::<String>::new();
+            if jobs[0].cmds[0].args.len() > 1 {
+                func_args = jobs[0].cmds[0].args[1..].iter_mut().map(
+                    |(quote, string)| {
+                        match quote {
+                            Quote::NQuote => {
+                                shell::expand_variables(shell, string);
+                                shell::expand_tilde(shell, string);
+                            }
+                            Quote::DQuote => {
+                                shell::expand_variables(shell, string);
+                            }
+                            Quote::BQuote => {
+                                return shell::substitute_commands(
+                                    shell, string.clone()
+                                ).unwrap_or_else(|_e| {
+                                    eprintln!("oyster: error in command substitution");
+                                    String::new()
+                                })
+                            }
+                            Quote::SQuote => {}
+                            Quote::SqBrkt => {}
+                        }
+                        string.clone()
+                    }
+                ).collect();
+            }
+            return shell.execute_func(&func_to_exec, func_args)
         } else if jobs[0].cmds[0].cmd.1 == "func" {
             if let Some(job) = jobs.last() {
                 if job.cmds[0].cmd.1 != "endfn" {
@@ -43,11 +70,22 @@ pub fn execute_jobs(
                     )
                 }
             }
-            let funcname = jobs.remove(0)
-                           .cmds.remove(0)
+            let mut func = jobs.remove(0);
+            let mut params_count = None;
+            if func.cmds[0].args.len() > 2 {
+                params_count = match func.cmds[0].args[2].1.parse::<usize>() {
+                    Ok(int) => Some(int),
+                    Err(_) => {
+                        return Err(
+                            ShellError::from("oyster: invalid function params count")
+                        )
+                    }
+                };
+            }
+            let funcname = func.cmds.remove(0)
                            .args.remove(1).1;
             jobs.pop();
-            shell.insert_func(&funcname, jobs, 0);
+            shell.insert_func(&funcname, jobs, params_count);
             return Ok((0, String::new()))
         }
     }

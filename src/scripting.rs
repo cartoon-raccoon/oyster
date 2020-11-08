@@ -189,6 +189,7 @@ impl Construct {
                         status = block.execute(shell)?;
                     }
                 }
+                shell.remove_variable(&loop_var);
                 Ok(status)
             }
             Construct::If {conditions, mut code} => {
