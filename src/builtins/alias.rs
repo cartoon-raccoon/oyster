@@ -6,13 +6,21 @@ use crate::types::{
 use crate::parser::Lexer;
 
 pub fn set(shell: &mut Shell, cmd: Cmd) -> i32 {
-    if cmd.args.len() != 2 {
-        eprintln!("oyster: bad assignment");
+    let key_value: Vec<&str>;
+    if cmd.args.len() == 4 {
+        if cmd.args[2] != "=" {
+            eprintln!("oyster: invalid alias syntax");
+            return 2;
+        }
+        key_value = vec![&cmd.args[1], &cmd.args[3]];
+    } else if cmd.args.len() == 3 {
+        key_value = vec![&cmd.args[1], &cmd.args[2]];
+    } else {
+        eprintln!("oyster: too many arguments");
         return 1;
     }
-    let key_value: Vec<&str> = cmd.args[1].split("=").collect();
     if key_value.len() != 2 {
-        eprintln!("oyster: bad assignment");
+        eprintln!("oyster: bad assignment for `{}`", key_value[0]);
         return 1;
     }
     match Lexer::tokenize(key_value[1]) {
@@ -25,17 +33,17 @@ pub fn set(shell: &mut Shell, cmd: Cmd) -> i32 {
                     }
                     Err(e) => {
                         eprintln!("{}", e);
-                        eprintln!("oyster: bad assignment");
+                        eprintln!("oyster: bad assignment for `{}`", key_value[0]);
                         return 1;
                     }
                 }
             } else {
-                eprintln!("oyster: bad assignment");
+                eprintln!("oyster: bad assignment for `{}`", key_value[0]);
                 return 1;
             }
         }
         Err(_) => {
-            eprintln!("oyster: bad assignment");
+            eprintln!("oyster: bad assignment for `{}`", key_value[0]);
             return 1;
         }
     } 

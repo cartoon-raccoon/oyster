@@ -292,10 +292,16 @@ impl Lexer {
                             word.clear();
                         }
                     } else {
+                        push(&mut tokenvec, &mut word, c, 
+                            in_dquote, in_squote, has_brace
+                        );
                         in_dquote = true;
                     }
                 }
                 '\\' if !in_squote => {
+                    push(&mut tokenvec, &mut word, c, 
+                        in_dquote, in_squote, has_brace
+                    );
                     if in_squote {
                         word.push(c);
                     } else {
