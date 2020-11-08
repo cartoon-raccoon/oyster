@@ -33,7 +33,6 @@ shell expansions
     -> button.{js, css} to button.js, button.css (done)
 
 Todo:
-Finish implementing scripting
 Implement history and completion
 Implement process substitution
 Implement git repo detection for prompt
@@ -46,6 +45,8 @@ For scripting:
     Implement if (and comparison operators)
     Implement case statement
     Implement logical operators (OR, AND)
+
+Experimental:
 Break up the token parser function into smaller functions
     for the shell expansion to use part of the functionality
 instead of passing execute() a set of params, pass it a Context
@@ -53,7 +54,6 @@ allowing execute() to run for different purposes, i.e. command substitution
 
 Bugs:
 Fix escaping for $
-Fix newlines in command substitution and dquote parsing
 Fix redirection order
 
 My preferred prompt:
