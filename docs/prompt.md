@@ -17,7 +17,7 @@ The currently accepted keywords are:
 The currently accepted colours are blue, yellow, black, white, red and green.
 They also have `_B` variants that display their bold variants.
 The `RESET` keyword must be used to return the colours back to white.
-To use the literal brace 
+To use the literal brace, you can escape it with a backslash.
 
 For example, `{YELLOW_B}[{HOST}] {USER}{RESET}: {BLUE}{CWD_FULL}{RESET}{NEWLINE}{COLOR_ST}❯{RESET} ` generates the following prompt:
 

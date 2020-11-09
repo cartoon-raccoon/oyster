@@ -10,7 +10,7 @@ Here the shell simply passes over the raw input string, detecting quotes and met
 When the tokenizer detects a quote metacharacter, it enters a quoted state that exits only when the matching quote is detected. If the tokenizer is still in the quoted state when it reaches the end of the line, it will continue to wait for input:
 ```
 $ echo "hello
-DQuote> "
+dquote > "
 hello
 ```
 
@@ -21,8 +21,8 @@ This is where the shell interprets the token stream outputted by the tokenizer, 
 Similarly to quote detection in tokenization, the parser can detect scripting constructs, and will continue to wait for more input until it detects the scripting construct is complete:
 ```
 $ for i in [1..5]
-For > echo hello
-For > done
+for > echo hello
+for > done
 hello
 hello
 hello
@@ -62,6 +62,11 @@ $ echo wassup my dudes | cowsay
                 ||----w |
                 ||     ||
 
+```
+The `|&` operator causes both stdout and stderr to be piped to the next command in the pipeline. It is equivalent to `2>&1`.
+```
+$ cat ~/Documents |& grep directory
+cat: /home/sammy/Documents: Is a directory
 ```
 ### Conditional Execution
 Oyster can execute a series of pipelines like any other shell:
