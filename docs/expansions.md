@@ -26,6 +26,7 @@ $ greet
     \___)=(___/
 
 ```
+See [builtins](builtins.md) for more information.
 ### Functions
 Similar to aliases are shell functions. These are defined with the `func` keyword, and are called with the name and `()` concatenated to the back.
 To denote the end of the function, you must use the `endfn` keyword.

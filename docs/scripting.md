@@ -41,8 +41,8 @@ Brace and glob expansions are also valid here.
 The variable in the loop declaration is a valid shell variable, and can be expanded:
 ```
 $ for name in 1{0,1,2,3,4}
-For > echo $name
-For > done
+for > echo $name
+for > done
 
 10
 11
@@ -71,20 +71,18 @@ end
 The condition can be a square bracket construct, or a command; the test succeeds if the command's exit status is 0, otherwise it fails and control moves to the next branch if any.
 ```
 $ if cat ~/Documents 2>/dev/null
-If > echo "this shouldn't work"
-If > elif echo hello &> /dev/null
-If > echo "this branch gets executed"
-If > else
-If > echo "this branch gets skipped"
-If > end
+if > echo "this shouldn't work"
+if > elif echo hello &> /dev/null
+if > echo "this branch gets executed"
+if > else
+if > echo "this branch gets skipped"
+if > end
 
 this branch gets executed
 ```
 The only accepted square bracket notation here is equality evaluation:
 
-`[$<variable> <equality operator> <some value>]`
-
-This requires variable typing to be implemented, and thus has not been implemented yet.
+`[<some value> <equality operator> <some value>]`
 
 Only variables of the same type can be compared. The shell will throw an error otherwise.
 
@@ -95,6 +93,24 @@ The accepted equality operators are:
 - `-gt` - Greater than
 - `-le` - Less than or equal to
 - `-ge` - Greater than or equal to
+
+You can put variables on either side, expanding them as usual with `$`.
+
+e.g.
+```
+$ let int number = 2
+$ show -v number
+int: 2
+
+$ if [$number == 2];
+if > echo cool this worked
+if > else
+if > echo this did not work
+if > end
+
+cool this worked
+```
+Strings are compared lexicographically.
 
 ### Running scripts
 Oyster can also execute script files. When invoked, it checks its second argument, and if it exists, it opens the file specified there and executes it.
