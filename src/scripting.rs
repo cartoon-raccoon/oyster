@@ -9,6 +9,7 @@ use crate::types::{
     Exec, 
     TokenCmd,
     Quote,
+    Variable,
     TokenizeResult,
     ParseResult,
 };
@@ -70,7 +71,7 @@ pub enum Construct {
     /// Represents a `for` loop
     For {
         loop_var: String,
-        loop_over: Vec<String>,
+        loop_over: Vec<Variable>,
         code: Vec<Box<Construct>>,
     },
     /// Represents an `if/elif/else` statement.
@@ -138,7 +139,7 @@ impl Construct {
                     loop_var: details.args[1].1.to_string(),
                     loop_over: details.args[3..].to_vec()
                         .into_iter()
-                        .map(|tuple| tuple.1)
+                        .map(|tuple| Variable::from(tuple.1))
                         .collect(),
                     code: final_code,
                 })
@@ -182,7 +183,7 @@ impl Construct {
                 let mut status: i32 = 0;
 
                 for item in loop_over {
-                    shell.add_variable(&loop_var, &item);
+                    shell.add_variable(&loop_var, Variable::from(item));
                     //* clone here slows things down a lot
                     let code2 = code.clone();
                     for block in code2 {

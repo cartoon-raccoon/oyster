@@ -21,6 +21,7 @@ use linefeed::{
 
 use parser::Lexer;
 use types::{
+    Variable,
     TokenizeResult,
     ParseResult,
 };
@@ -48,7 +49,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut counter = 0;
         for arg in &args[2..] {
             let varname = format!("{}", counter);
-            shell.add_variable(&varname, arg);
+            shell.add_variable(&varname, Variable::from(arg));
             counter += 1;
         }
     }
@@ -131,7 +132,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                     break;
                                 }
                                 n@ _ => {
-                                    print!("{}", n); io::stdout().flush().unwrap();
+                                    print!("{} ", n); io::stdout().flush().unwrap();
                                     match io::stdin().read_line(&mut buffer) {
                                         Ok(_) => {},
                                         Err(_) => {

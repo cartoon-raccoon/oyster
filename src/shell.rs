@@ -22,6 +22,7 @@ use nix::sys::signal::{
 use crate::types::{
     Job,
     JobTrack,
+    Variable as Var,
     UnwrapOr,
     JobStatus,
     ShellError,
@@ -41,7 +42,7 @@ pub struct Shell {
     pub jobs: BTreeMap<i32, JobTrack>,
     aliases: HashMap<String, String>,
     pub env: HashMap<String, String>,
-    pub vars: HashMap<String, String>,
+    pub vars: HashMap<String, Var>,
     pub funcs: HashMap<String, (Vec<Job>, Option<usize>)>,
     pub max_recursion: usize,
     pub stack_size: usize,
@@ -168,7 +169,7 @@ impl Shell {
             let mut counter = 0;
             for param in params {
                 let varname = format!("{}{}", name, counter);
-                self.add_variable(&varname, &param);
+                self.add_variable(&varname, Var::from(param));
                 counter += 1;
             }
             let result = execute::execute_jobs(self, jobs_to_do, false);
@@ -207,11 +208,11 @@ impl Shell {
         }
     }
     /// Adds a variable to the shell.
-    pub fn add_variable(&mut self, key: &str, value: &str) {
-        self.vars.insert(key.to_string(), value.to_string());
+    pub fn add_variable(&mut self, key: &str, value: Var) {
+        self.vars.insert(key.to_string(), value);
     }
     /// Gets the value of a variable from the shell without removing it.
-    pub fn get_variable(&self, key: &str) -> Option<String> {
+    pub fn get_variable(&self, key: &str) -> Option<Var> {
         if let Some(entry) = self.vars.get(key) {
             Some(entry.clone())
         } else {
@@ -220,7 +221,9 @@ impl Shell {
     }
     /// Removes a variable from the shell.
     pub fn remove_variable(&mut self, key: &str) -> Option<String> {
-        self.vars.remove(key)
+        self.vars.remove(key).map(|var| {
+            var.to_string()
+        })
     }
     /// Loads in a config file and applies it to the shell.
     /// Internally calls the run_script function in execute.
@@ -228,7 +231,7 @@ impl Shell {
         let mut shell = Shell::new();
         //todo FIXME: variables not registering with shell
         for (var, value) in env::vars() {
-            shell.add_variable(&var, &value);
+            shell.add_variable(&var, Var::Str(value));
         }
         match execute_scriptfile(&mut shell, filename) {
             Ok(status) => {
@@ -328,7 +331,7 @@ pub fn assign_variables(shell: &mut Shell, string: &mut String) -> bool {
     let re = Regex::new(r"[a-zA-Z0-9]+=.+").unwrap();
     if re.is_match(string) {
         let key_value: Vec<&str> = string.split("=").collect();
-        shell.add_variable(key_value[0], key_value[1]);
+        shell.add_variable(key_value[0], Var::from(key_value[1]));
         return true;
     }
     false
@@ -547,7 +550,7 @@ pub fn expand_variables(shell: &Shell, string: &mut String) {
     for capture in re.captures_iter(&string.clone()) {
         if let Some(capture) = capture.get(0) {
             if let Some(var) = shell.get_variable(&capture.as_str()[1..]) {
-                *string = string.replacen(capture.as_str(), var.as_str(), 1);
+                *string = string.replacen(capture.as_str(), &var.to_string(), 1);
             } else {
                 *string = string.replacen(capture.as_str(), "", 1);
             }
@@ -656,8 +659,8 @@ mod tests {
     #[test]
     fn check_expand_vars() {
         let mut shell = Shell::new();
-        shell.add_variable("hello", "wassup");
-        shell.add_variable("what", "is this");
+        shell.add_variable("hello", Var::from("wassup"));
+        shell.add_variable("what", Var::from("is this"));
         let mut test = String::from("goodbye $hello i know you $what $wontwork");
         expand_variables(&shell, &mut test);
         assert_eq!(

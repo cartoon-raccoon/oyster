@@ -1,24 +1,38 @@
 use crate::shell::Shell;
-use crate::types::Cmd;
+use crate::types::{Cmd, Variable as Var};
 
 pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
-    let key_value: Vec<&str>;
-    if cmd.args.len() == 4 {
-        if cmd.args[2] != "=" {
-            eprintln!("oyster: invalid syntax");
-            return 2;
+    // let <type> <name> = <value>
+    if cmd.args.len() == 5 { //both type specification and equals
+        if cmd.args[1] == "str" {
+            shell.add_variable(&cmd.args[2], Var::Str(cmd.args[4].clone()));
+        } else if cmd.args[1] == "int" {
+            if let Ok(int) = cmd.args[4].parse::<i32>() {
+                shell.add_variable(&cmd.args[2], Var::Int(int));
+            } else {
+                eprintln!("let: cannot parse '{}' as int", cmd.args[4]);
+                return 2;
+            }
+        } else if cmd.args[1] == "flt" {
+            if let Ok(flt) = cmd.args[4].parse::<f32>() {
+                shell.add_variable(&cmd.args[2], Var::Flt(flt));
+            } else {
+                eprintln!("let: cannot {} as flt", cmd.args[4]);
+                return 2;
+            }
+        } else {
+            eprintln!("let: invalid type specification")
         }
-        key_value = vec![&cmd.args[1], &cmd.args[3]];
-    } else if cmd.args.len() == 3 {
-        key_value = vec![&cmd.args[1], &cmd.args[2]];
+    } else if cmd.args.len() == 4 {
+        // let <name> = <value> (type inference)
+        if cmd.args[2] != "=" {
+            eprintln!("let: invalid syntax");
+            return 1;
+        }
+        shell.add_variable(&cmd.args[1], Var::from(&cmd.args[3]))
     } else {
-        eprintln!("oyster: too many arguments");
+        eprintln!("let: not enough arguments");
         return 1;
     }
-    if key_value.len() != 2 {
-        eprintln!("oyster: bad assignment for `{}`", key_value[0]);
-        return 1;
-    }
-    shell.add_variable(key_value[0], key_value[1]);
     0
-}
+} 

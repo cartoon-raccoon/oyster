@@ -450,6 +450,59 @@ impl Cmd {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Variable {
+    Str(String),
+    Int(i32),
+    Flt(f32),
+}
+
+impl Variable {
+    pub fn print(&self) {
+        match self {
+            Variable::Str(string) => {
+                println!("str: \"{}\"", string);
+            }
+            Variable::Int(int) => {
+                println!("int: {}", int);
+            }
+            Variable::Flt(flt) => {
+                println!("flt: {}", flt);
+            }
+        }
+    }
+}
+
+impl<V: AsRef<str>> From<V> for Variable {
+    fn from(input: V) -> Self {
+        let input = input.as_ref();
+        if let Ok(int) = input.parse::<i32>() {
+            return Variable::Int(int)
+        } else if let Ok(flt) = input.parse::<f32>() {
+            return Variable::Flt(flt)
+        } else {
+            Variable::Str(input.to_string())
+        }
+    }
+}
+
+impl fmt::Display for Variable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Variable::*;
+        match self {
+            Str(string) => {
+                write!(f, "{}", string)
+            }
+            Int(int) => {
+                write!(f, "{}", int)
+            }
+            Flt(flt) => {
+                write!(f, "{}", flt)
+            }
+        }
+    }
+}
+
 /// Emitted by `parse_tokens()`, its data is consumed by `execute_jobs()`
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Job {
