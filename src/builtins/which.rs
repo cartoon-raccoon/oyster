@@ -15,6 +15,7 @@ pub fn run(mut cmd: Cmd) -> i32 {
             //name @ "kill" |
             name @ "alias" |
             name @ "let" |
+            name @ "show" |
             name @ "exit" => {
                 println!("{}: built in shell command", name);
             }
