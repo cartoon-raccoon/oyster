@@ -15,6 +15,10 @@ use crate::shell::{
     substitute_commands,
     expand_glob,
 };
+use crate::prompt::{
+    BOLD,
+    RESET,
+};
 
 pub const STOPPED: i32 = 127;
 
@@ -34,22 +38,22 @@ impl fmt::Display for TokenizeResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TokenizeResult::UnmatchedDQuote => {
-                write!(f, "DQuote>")
+                write!(f, "{}dquote >{}", BOLD, RESET)
             }
             TokenizeResult::UnmatchedSQuote => {
-                write!(f, "Quote>" )
+                write!(f, "{}quote >{}", BOLD, RESET )
             }
             TokenizeResult::UnmatchedBQuote => {
-                write!(f, "BQuote>")
+                write!(f, "{}bquote >{}", BOLD, RESET )
             }
             TokenizeResult::EndsOnAnd => {
-                write!(f, "CmdAnd>")
+                write!(f, "{}cmdand >{}", BOLD, RESET )
             }
             TokenizeResult::EndsOnOr => {
-                write!(f, "CmdOr>" )
+                write!(f, "{}cmdor >{}", BOLD, RESET )
             }
             TokenizeResult::EndsOnPipe => {
-                write!(f, "Pipe>"  )
+                write!(f, "{}pipe >{}", BOLD, RESET )
             }
             TokenizeResult::EmptyCommand => {
                 write!(f, "")
@@ -71,6 +75,25 @@ pub enum ParseResult {
     //While,
     //Case,
     Good(Vec<Job>),
+}
+
+impl fmt::Display for ParseResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParseResult::For => {
+                write!(f, "{}for >{}", BOLD, RESET )
+            }
+            ParseResult::If => {
+                write!(f, "{}if >{}", BOLD, RESET )
+            }
+            ParseResult::Func => {
+                write!(f, "{}func >{}", BOLD, RESET )
+            }
+            ParseResult::Good(_jobs) => {
+                Ok(())
+            }
+        }
+    }
 }
 
 /// A small error type for command substitution to return
@@ -257,6 +280,68 @@ pub enum Token {
     RDStdOutErr, //Always redirects to a file
     RDFileDesc,  //Redirects to a file descriptor
     Background,
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Token::*;
+        match self {
+            Word(string) => {
+                write!(f, "{}", string)
+            }
+            SQuote(string) => {
+                write!(f, "{}", string)
+            }
+            DQuote(string) => {
+                write!(f, "{}", string)
+            }
+            BQuote(string) => {
+                write!(f, "{}", string)
+            }
+            Brace(string) => {
+                write!(f, "{}", string)
+            }
+            SqBrkt(string) => {
+                write!(f, "{}", string)
+            }
+            Pipe => {
+                write!(f, "|")
+            }
+            Pipe2 => {
+                write!(f, "|&")
+            }
+            And => {
+                write!(f, "&&")
+            }
+            Or => {
+                write!(f, "||")
+            }
+            Consec => {
+                write!(f, ";")
+            }
+            FileMarker => {
+                write!(f, ">&")
+            }
+            Redirect => {
+                write!(f, ">")
+            }
+            RDAppend => {
+                write!(f, ">>")
+            }
+            RDStdin => {
+                write!(f, "<")
+            }
+            RDStdOutErr => {
+                write!(f, "&>")
+            }
+            RDFileDesc => {
+                write!(f, ">&")
+            }
+            Background => {
+                write!(f, "&")
+            }
+        }
+    }
 }
 
 /// Produced during parsing, used as a redirect marker in Cmd

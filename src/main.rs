@@ -101,22 +101,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             match Lexer::tokenize(&buffer) {
                 Ok(result) => {
                     match result {
-                        n@ TokenizeResult::UnmatchedDQuote | 
-                        n@ TokenizeResult::UnmatchedSQuote | 
-                        n@ TokenizeResult::UnmatchedBQuote |
-                        n@ TokenizeResult::EndsOnAnd | 
-                        n@ TokenizeResult::EndsOnOr | 
-                        n@ TokenizeResult::EndsOnPipe => {
-                            print!("{} ", n); io::stdout().flush().unwrap();
-                            match io::stdin().read_line(&mut buffer) {
-                                Ok(_) => {},
-                                Err(_) => {
-                                    eprintln!("oyster: error reading to line");
-                                }
-                            }
-                        }
                         TokenizeResult::EmptyCommand => {
                             buffer.clear();
+                            last_status = 0;
                             break;
                         }
                         TokenizeResult::Good(parsedtokens) => {
@@ -144,13 +131,22 @@ fn main() -> Result<(), Box<dyn Error>> {
                                     break;
                                 }
                                 n@ _ => {
-                                    print!("{:?} > ", n); io::stdout().flush().unwrap();
+                                    print!("{}", n); io::stdout().flush().unwrap();
                                     match io::stdin().read_line(&mut buffer) {
                                         Ok(_) => {},
                                         Err(_) => {
                                             eprintln!("oyster: error reading to line");
                                         }
                                     }
+                                }
+                            }
+                        }
+                        n@ _ => {
+                            print!("{} ", n); io::stdout().flush().unwrap();
+                            match io::stdin().read_line(&mut buffer) {
+                                Ok(_) => {},
+                                Err(_) => {
+                                    eprintln!("oyster: error reading to line");
                                 }
                             }
                         }

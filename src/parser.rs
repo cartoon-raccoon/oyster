@@ -234,7 +234,7 @@ impl Lexer {
                     }
                     has_brace = false;
                 },
-                ';' | '\n' if !in_squote && !in_bquote 
+                ';' if !in_squote && !in_bquote 
                     && !in_sqbrkt && !in_dquote => {
                     if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
                     push(&mut tokenvec, &mut word, c, 
@@ -244,6 +244,36 @@ impl Lexer {
                     } else {
                         tokenvec.push(Token::Consec);
                         ignore_next = false;
+                    }
+                    has_brace = false;
+                }
+                '\n' if !in_squote && !in_bquote 
+                    && !in_sqbrkt && !in_dquote => {
+                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
+                    push(&mut tokenvec, &mut word, c, 
+                        in_dquote, in_squote, has_brace
+                    );
+                    if let Some(token) = tokenvec.last()  {
+                        match token {
+                            Token::Consec |
+                            Token::FileMarker |
+                            Token::Or |
+                            Token::And |
+                            Token::Background |
+                            Token::Pipe |
+                            Token::Pipe2 => {}
+                            n@ Token::Redirect |
+                            n@ Token::RDStdin |
+                            n@ Token::RDAppend |
+                            n@ Token::RDStdOutErr |
+                            n@ Token::RDFileDesc => {
+                                return Err(ParseError::GenericError(n.to_string()))
+                            }
+                            _ => {
+                                tokenvec.push(Token::Consec);
+                                ignore_next = false;
+                            }
+                        }
                     }
                     has_brace = false;
                 }
