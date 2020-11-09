@@ -23,6 +23,7 @@ use crate::types::{
     Job,
     JobTrack,
     Variable as Var,
+    Function,
     UnwrapOr,
     JobStatus,
     ShellError,
@@ -43,7 +44,7 @@ pub struct Shell {
     aliases: HashMap<String, String>,
     pub env: HashMap<String, String>,
     pub vars: HashMap<String, Var>,
-    pub funcs: HashMap<String, (Vec<Job>, Option<usize>)>,
+    pub funcs: HashMap<String, Function>,
     pub max_recursion: usize,
     pub stack_size: usize,
     current_dir: PathBuf,
@@ -148,19 +149,24 @@ impl Shell {
         }
     }
     pub fn insert_func(&mut self, name: &str, jobs: Vec<Job>, params: Option<usize>) {
-        self.funcs.insert(name.to_string(), (jobs, params));
+        let func = Function {
+            name: name.to_string(),
+            jobs: jobs,
+            params: params,
+        };
+        self.funcs.insert(name.to_string(), func);
     }
     pub fn execute_func(&mut self, name: &str, params: Vec<String>) 
     -> Result<(i32, String), ShellError> {
-        if let Some((func, paramscount)) = &mut self.funcs.get(name) {
+        if let Some(func) = &mut self.funcs.get(name) {
             if self.stack_size == self.max_recursion {
                 self.stack_size = 0;
                 return Err(ShellError::from("oyster: exceeded maximum recursion depth"))
             }
             self.stack_size += 1;
-            let jobs_to_do = func.clone();
-            if let Some(paramscount) = paramscount {
-                if paramscount != &params.len() {
+            let jobs_to_do = func.jobs.clone();
+            if let Some(paramscount) = func.params {
+                if paramscount != params.len() {
                     return Err(
                         ShellError::from("oyster: function parameter mismatch")
                     )

@@ -7,3 +7,4 @@ pub mod alias;
 pub mod export;
 pub mod exit;
 pub mod which;
+pub mod show;

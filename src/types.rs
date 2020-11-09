@@ -352,6 +352,16 @@ pub enum Redirect { //* Origin is always a file descriptor
     FromStdin,
 }
 
+impl Redirect {
+    pub fn display(&self) -> String {
+        match self {
+            Redirect::Override => String::from(">"),
+            Redirect::Append => String::from(">>"),
+            Redirect::FromStdin => String::from("<")
+        }
+    }
+}
+
 /// Produced during parsing, indicates how the string it comes with
 /// should be treated by `Cmd::from_tokencmd()`
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -376,6 +386,36 @@ pub struct TokenCmd {
     pub args: Vec<(Quote, String)>,
     pub redirects: Vec<(String, Redirect, String)>,
     pub pipe_stderr: bool,
+}
+
+impl fmt::Display for TokenCmd {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let cmd: Vec<String> = self.args.iter().map(|(quote, string)| {
+            match quote {
+                Quote::NQuote => {
+                    return format!("{}", string);
+                }
+                Quote::BQuote => {
+                    return format!("{}", string);
+                }
+                Quote::DQuote => {
+                    return format!("\"{}\"", string);
+                }
+                Quote::SQuote => {
+                    return format!("\'{}\'", string);
+                }
+                Quote::SqBrkt => {
+                    return format!("[{}]", string);
+                }
+            }
+        }).collect();
+        let redirects: Vec<String> = self.redirects.iter().map(
+            |(string, rd, string2)| {
+                return format!("{}{}{}", string, rd.display(), string2);
+            }
+        ).collect();
+        write!(f, "{} {}", cmd.join(" "), redirects.join(" "))
+    }
 }
 
 /// The final data type sent to the core functions
@@ -451,6 +491,32 @@ impl Cmd {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Function {
+    pub name: String,
+    pub jobs: Vec<Job>,
+    pub params: Option<usize>,
+}
+
+impl Function {
+    pub fn print(&self) {
+        let paramscount = if let Some(count) = self.params {
+            count.to_string()
+        } else {
+            String::from("")
+        };
+        let jobs: Vec<String> = self.jobs.iter().map(|job| {
+            job.to_string()
+        }).collect();
+        println!(
+            "func {} {}\n   {}\nendfn",
+            self.name,
+            paramscount,
+            jobs.join("\n   "),
+        )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Variable {
     Str(String),
     Int(i32),
@@ -509,6 +575,27 @@ pub struct Job {
     pub cmds: Vec<TokenCmd>,
     pub execnext: Option<Exec>,
     pub id: i32,
+}
+
+impl fmt::Display for Job {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let cmds: Vec<String> = self.cmds.iter().map(
+            |cmd| {
+                return format!("{}", cmd)
+            }
+        ).collect();
+        let exec: String = if let Some(execif) = self.execnext {
+            match execif {
+                Exec::And => String::from("&&"),
+                Exec::Background => String::from("&"),
+                Exec::Or => String::from("||"),
+                Exec::Consec => String::from("")
+            }
+        } else {
+            String::from("")
+        };
+        write!(f, "{}{}", cmds.join(" | "), exec)
+    }
 }
 
 /// Used by the internal shell HashMap to track jobs in job control

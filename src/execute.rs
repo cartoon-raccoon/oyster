@@ -186,6 +186,10 @@ pub fn execute(
                 let status = which::run(cmd);
                 return Ok(CommandResult::from_status(status));
             }
+            "show" => {
+                let status = show::run(shell, cmd);
+                return Ok(CommandResult::from_status(status));
+            }
             "eval" => {
             }
             "source" => {
