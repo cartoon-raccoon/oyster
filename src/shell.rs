@@ -43,6 +43,8 @@ pub struct Shell {
     pub env: HashMap<String, String>,
     pub vars: HashMap<String, String>,
     pub funcs: HashMap<String, (Vec<Job>, Option<usize>)>,
+    pub max_recursion: usize,
+    pub stack_size: usize,
     current_dir: PathBuf,
     prev_dir: PathBuf,
     pgid: i32,
@@ -59,6 +61,8 @@ impl Shell {
             env: HashMap::new(),
             vars: HashMap::new(),
             funcs: HashMap::new(),
+            max_recursion: 50,
+            stack_size: 0,
             current_dir: PathBuf::from(pwd),
             prev_dir: PathBuf::from(home),
             pgid: 0,
@@ -147,9 +151,13 @@ impl Shell {
     }
     pub fn execute_func(&mut self, name: &str, params: Vec<String>) 
     -> Result<(i32, String), ShellError> {
-        let jobs_to_do: Vec<Job>;
         if let Some((func, paramscount)) = &mut self.funcs.get(name) {
-            jobs_to_do = func.clone();
+            if self.stack_size == self.max_recursion {
+                self.stack_size = 0;
+                return Err(ShellError::from("oyster: exceeded maximum recursion depth"))
+            }
+            self.stack_size += 1;
+            let jobs_to_do = func.clone();
             if let Some(paramscount) = paramscount {
                 if paramscount != &params.len() {
                     return Err(
@@ -159,13 +167,13 @@ impl Shell {
             }
             let mut counter = 0;
             for param in params {
-                let varname = format!("f{}", counter);
+                let varname = format!("{}{}", name, counter);
                 self.add_variable(&varname, &param);
                 counter += 1;
             }
             let result = execute::execute_jobs(self, jobs_to_do, false);
-            for i in 0..counter + 1 {
-                let varname = format!("f{}", i);
+            for i in 0..counter {
+                let varname = format!("{}{}", name, i);
                 self.remove_variable(&varname);
             }
             result

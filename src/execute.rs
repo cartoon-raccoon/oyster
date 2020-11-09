@@ -31,38 +31,7 @@ pub fn execute_jobs(
     let mut result = CommandResult::new();
 
     if jobs[0].cmds[0].cmd.0 == Quote::NQuote {
-        if jobs[0].cmds[0].cmd.1.ends_with("()") {
-            let func_to_exec =
-                jobs[0].cmds[0].cmd.1.replace("()", "");
-            let mut func_args = Vec::<String>::new();
-            if jobs[0].cmds[0].args.len() > 1 {
-                func_args = jobs[0].cmds[0].args[1..].iter_mut().map(
-                    |(quote, string)| {
-                        match quote {
-                            Quote::NQuote => {
-                                shell::expand_variables(shell, string);
-                                shell::expand_tilde(shell, string);
-                            }
-                            Quote::DQuote => {
-                                shell::expand_variables(shell, string);
-                            }
-                            Quote::BQuote => {
-                                return shell::substitute_commands(
-                                    shell, string.clone()
-                                ).unwrap_or_else(|_e| {
-                                    eprintln!("oyster: error in command substitution");
-                                    String::new()
-                                })
-                            }
-                            Quote::SQuote => {}
-                            Quote::SqBrkt => {}
-                        }
-                        string.clone()
-                    }
-                ).collect();
-            }
-            return shell.execute_func(&func_to_exec, func_args)
-        } else if jobs[0].cmds[0].cmd.1 == "func" {
+        if jobs[0].cmds[0].cmd.1 == "func" {
             if let Some(job) = jobs.last() {
                 if job.cmds[0].cmd.1 != "endfn" {
                     return Err(
@@ -99,6 +68,11 @@ pub fn execute_jobs(
             ExecType::Job(job) => {
                 execif = job.execnext;
                 if let Some(execcond) = execif {
+                    if job.cmds[0].cmd.1.ends_with("()") {
+                        let result =  execute_func(shell, job)?;
+                        shell.stack_size = 0;
+                        return Ok(result)
+                    }
                     match execcond {
                         Exec::And => { //continue if last job succeeded
                             result = execute(shell, job, false, capture)?;
@@ -130,6 +104,11 @@ pub fn execute_jobs(
                         }
                     }
                 } else { //if is None; this should only occur on the last job
+                    if job.cmds[0].cmd.1.ends_with("()") {
+                        let result =  execute_func(shell, job)?;
+                        shell.stack_size = 0;
+                        return Ok(result)
+                    }
                     result = execute(shell, job, false, capture)?;
                     captured.push_str(&result.stdout);
                 }
@@ -282,4 +261,37 @@ fn extract_constructs(jobs: Vec<Job>) -> Result<Vec<ExecType>, ShellError> {
         return Err(ShellError::from("oyster: parse error in script"))
     }
     Ok(to_return)
+}
+
+fn execute_func(shell: &mut Shell, mut job: Job) -> Result<(i32, String), ShellError> {
+    let func_to_exec =
+        job.cmds[0].cmd.1.replace("()", "");
+    let mut func_args = Vec::<String>::new();
+    if job.cmds[0].args.len() > 1 {
+        func_args = job.cmds[0].args[1..].iter_mut().map(
+            |(quote, string)| {
+                match quote {
+                    Quote::NQuote => {
+                        shell::expand_variables(shell, string);
+                        shell::expand_tilde(shell, string);
+                    }
+                    Quote::DQuote => {
+                        shell::expand_variables(shell, string);
+                    }
+                    Quote::BQuote => {
+                        return shell::substitute_commands(
+                            shell, string.clone()
+                        ).unwrap_or_else(|_e| {
+                            eprintln!("oyster: error in command substitution");
+                            String::new()
+                        })
+                    }
+                    Quote::SQuote => {}
+                    Quote::SqBrkt => {}
+                }
+                string.clone()
+            }
+        ).collect();
+    }
+    return shell.execute_func(&func_to_exec, func_args)
 }
