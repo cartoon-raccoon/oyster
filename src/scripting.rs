@@ -199,11 +199,11 @@ impl Construct {
                     return Ok(0)
                 }
                 //note: this isn't particularly efficient
-                for (condition, execif) in conditions {
+                for (condition, _execif) in conditions {
                     //for every if and elif
                     let to_exec = code.remove(0);
                     //if execif is true, execute the code block
-                    if exec(shell, condition, false, false)?.status == 0 && execif {
+                    if eval_condition(shell, condition)? {
                         for job in to_exec {
                             status = job.execute(shell)?;
                         }
@@ -235,6 +235,16 @@ impl Construct {
             }
         }
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+enum EqTest {
+    Eq,
+    Ne,
+    Lt,
+    Gt,
+    Le,
+    Ge,
 }
 
 fn expand_sqbrkt_range(brkt: String) -> Result<Vec<(Quote, String)>, ShellError> {
@@ -274,6 +284,141 @@ fn expand_sqbrkt_range(brkt: String) -> Result<Vec<(Quote, String)>, ShellError>
         to_return.push((Quote::NQuote, end.to_string()));
     }
     Ok(to_return)
+}
+
+fn eval_condition(shell: &mut Shell, mut condition: Job) 
+-> Result<bool, ShellError> {
+    use EqTest::*;
+    if condition.cmds.len() == 1 &&
+       condition.cmds[0].cmd.0 == Quote::SqBrkt {
+        let condition = condition.cmds.remove(0).cmd.1;
+        let (lhs, eq, rhs) = tokenize_sqbrkt(shell, condition)?;
+        if Variable::match_types(&lhs, &rhs) {
+            match eq {
+                Eq => {return Ok(lhs == rhs)}
+                Ne => {return Ok(lhs != rhs)}
+                Lt => {return Ok(lhs  < rhs)}
+                Gt => {return Ok(lhs  > rhs)}
+                Le => {return Ok(lhs <= rhs)}
+                Ge => {return Ok(lhs >= rhs)}
+            }
+        } else {
+            return Err(
+                ShellError::from(
+                    "oyster: cannot compare variables of different types"
+                )
+            )
+        }
+    } else if condition.cmds[0].cmd.0 == Quote::BQuote {
+        unimplemented!()
+    } 
+    else {
+        return Ok(exec(shell, condition, false, false)?.status == 0)
+    }
+}
+
+fn tokenize_sqbrkt(shell: &mut Shell, condition: String) 
+-> Result<(Variable, EqTest, Variable), ShellError> {
+    let mut in_quote = false;
+    let mut parsed: Vec<(bool, String)> = Vec::new();
+    let mut word = String::new();
+    for c in condition.chars() {
+        match c {
+            '"' => {
+                if !in_quote {
+                    in_quote = true;
+                } else {
+                    parsed.push((true, word.clone()));
+                    word.clear();
+                    in_quote = false;
+                }
+            }
+            ' ' => if !in_quote {
+                if !word.is_empty() {
+                    parsed.push((false, word.clone()));
+                }
+                word.clear();
+            }
+            _ => {
+                word.push(c);
+            }
+        }
+    }
+    if !word.is_empty() {
+        parsed.push((false, word));
+    }
+    if parsed.len() != 3 {
+        return Err(
+            ShellError::from(
+                "oyster: cannot parse square bracket"
+            )
+        )
+    }
+    if parsed[1].0 {
+        return Err(
+            ShellError::from(
+                "oyster: middle operator is quoted"
+            )
+        )
+    }
+    let lhs = if parsed[0].0 {
+        Variable::Str(parsed[0].1.clone())
+    } else if parsed[0].1.starts_with("$") {
+        if let Some(var) = shell.get_variable(&parsed[0].1[1..]) {
+            var
+        } else {
+            return Err(
+                ShellError::from(
+                    format!("oyster: variable {} not found", &parsed[0].1[1..])
+                )
+            )
+        }
+    } else {
+        Variable::from(&parsed[0].1)
+    };
+    let rhs = if parsed[2].0 {
+        Variable::Str(parsed[2].1.clone())
+    } else if parsed[2].1.starts_with("$") {
+        if let Some(var) = shell.get_variable(&parsed[2].1[1..]) {
+            var
+        } else {
+            return Err(
+                ShellError::from(
+                    format!("oyster: variable {} not found", &parsed[2].1[1..])
+                )
+            )
+        }
+    } else {
+        Variable::from(&parsed[2].1)
+    };
+    let comparator = match parsed[1].1.as_str() {
+        "-eq" | "==" => {
+            EqTest::Eq
+        }
+        "-ne" | "!=" => {
+            EqTest::Ne
+        }
+        "-lt" | "<"  => {
+            EqTest::Lt
+        }
+        "-gt" | ">"  => {
+            EqTest::Gt
+        }
+        "-le" | "<=" => {
+            EqTest::Le
+        }
+        "-ge" | ">=" => {
+            EqTest::Ge
+        }
+        _ => {
+            return Err(
+                ShellError::from(
+                    "oyster: unrecognized comparison operator"
+                )
+            )
+        }
+    };
+    Ok((lhs, comparator, rhs))
 }
 
 /// Splits a single scope into its individual constructs
@@ -433,6 +578,23 @@ mod tests {
         assert_eq!(
             execute_scriptfile(&mut shell, "testscripts/test1").unwrap(),
             0
+        )
+    }
+
+    #[test]
+    fn test_sqbrkt_tokenizer() {
+        let teststring = String::from("$thing == \"hello\"");
+        let teststring2 = String::from("$number -ne 2");
+        let mut shell = Shell::new();
+        shell.add_variable("thing", Variable::from("hello"));
+        shell.add_variable("number", Variable::from("2"));
+        assert_eq!(
+            tokenize_sqbrkt(&mut shell, teststring).unwrap(),
+            (Variable::from("hello"), EqTest::Eq, Variable::Str(String::from("hello")))
+        );
+        assert_eq!(
+            tokenize_sqbrkt(&mut shell, teststring2).unwrap(),
+            (Variable::from("2"), EqTest::Ne, Variable::Int(2))
         )
     }
 }

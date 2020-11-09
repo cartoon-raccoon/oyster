@@ -516,7 +516,7 @@ impl Function {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Variable {
     Str(String),
     Int(i32),
@@ -534,6 +534,32 @@ impl Variable {
             }
             Variable::Flt(flt) => {
                 println!("flt: {}", flt);
+            }
+        }
+    }
+
+    pub fn match_types(lhs: &Variable, rhs: &Variable) -> bool {
+        match lhs {
+            Variable::Int(_) => {
+                if let Variable::Int(_) = rhs {
+                    true
+                } else {
+                    false
+                }
+            }
+            Variable::Flt(_) => {
+                if let Variable::Flt(_) = rhs {
+                    true
+                } else {
+                    false
+                }
+            }
+            Variable::Str(_) => {
+                if let Variable::Str(_) = rhs {
+                    true
+                } else {
+                    false
+                }
             }
         }
     }
