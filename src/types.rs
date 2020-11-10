@@ -27,6 +27,7 @@ pub enum TokenizeResult {
     UnmatchedDQuote,
     UnmatchedSQuote,
     UnmatchedBQuote,
+    UnmatchedCmdSub,
     EndsOnOr,
     EndsOnAnd,
     EndsOnPipe,
@@ -45,6 +46,9 @@ impl fmt::Display for TokenizeResult {
             }
             TokenizeResult::UnmatchedBQuote => {
                 write!(f, "{}bquote >{}", BOLD, RESET )
+            }
+            TokenizeResult::UnmatchedCmdSub => {
+                write!(f, "{}cmdsub >{}", BOLD, RESET)
             }
             TokenizeResult::EndsOnAnd => {
                 write!(f, "{}cmdand >{}", BOLD, RESET )
@@ -266,6 +270,7 @@ pub enum Token {
     SQuote(String),
     DQuote(String),
     BQuote(String),
+    CmdSub(String),
     Brace(String),
     SqBrkt(String),
     Pipe, //handled!
@@ -296,6 +301,9 @@ impl fmt::Display for Token {
                 write!(f, "{}", string)
             }
             BQuote(string) => {
+                write!(f, "{}", string)
+            }
+            CmdSub(string) => {
                 write!(f, "{}", string)
             }
             Brace(string) => {
@@ -370,6 +378,7 @@ pub enum Quote {
     DQuote,
     SQuote,
     BQuote,
+    CmdSub,
     SqBrkt,
 }
 
@@ -398,11 +407,14 @@ impl fmt::Display for TokenCmd {
                 Quote::BQuote => {
                     return format!("{}", string);
                 }
+                Quote::CmdSub => {
+                    return format!("$({})", string);
+                }
                 Quote::DQuote => {
                     return format!("\"{}\"", string);
                 }
                 Quote::SQuote => {
-                    return format!("\'{}\'", string);
+                    return format!("'{}'", string);
                 }
                 Quote::SqBrkt => {
                     return format!("[{}]", string);
@@ -438,7 +450,18 @@ impl Cmd {
             Quote::DQuote => {
                 expand_variables(shell, &mut cmd.cmd.1);
             }
+            Quote::CmdSub => {
+                match substitute_commands(shell, cmd.cmd.1) {
+                    Ok(string) => {
+                        cmd.cmd = (Quote::NQuote, string);
+                    }
+                    Err(e) => {
+                        return Err(e.into());
+                    }
+                }
+            }
             Quote::BQuote => {
+                expand_variables(shell, &mut cmd.cmd.1);
                 match substitute_commands(shell, cmd.cmd.1) {
                     Ok(string) => {
                         cmd.cmd = (Quote::NQuote, string);
@@ -465,7 +488,19 @@ impl Cmd {
                 Quote::DQuote => {
                     expand_variables(shell, &mut string);
                 }
+                Quote::CmdSub => {
+                    match substitute_commands(shell, string) {
+                        Ok(string) => {
+                            newargs.push(string);
+                            continue;
+                        }
+                        Err(e) => {
+                            return Err(e.into());
+                        }
+                    }
+                }
                 Quote::BQuote => {
+                    expand_variables(shell, &mut string);
                     match substitute_commands(shell, string) {
                         Ok(string) => {
                             newargs.push(string);

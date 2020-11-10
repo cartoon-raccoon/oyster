@@ -583,8 +583,20 @@ pub fn replace_aliases(shell: &Shell, word: String) -> String {
 }
 
 // This command is gonna be sooo fucking slow
-pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, CmdSubError> {
-    //println!("{}", string);
+pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<String, CmdSubError> {
+    // Tokenizing and capturing cmbsubs first
+    let cmdsub_re = Regex::new(
+        "\\$\\([\\a-zA-Z0-9 \"-.@~/\\|<>\\&$()]+\\)"
+    ).unwrap();
+    for capture in cmdsub_re.captures_iter(&string.clone()) {
+        if let Some(capture) = capture.get(0) {
+            let mut capture = capture.as_str().to_string();
+            capture.pop();
+            let output = execute_commands_once(shell, &capture[2..])?;
+            capture.push(')');
+            string = string.replacen(&capture, &output, 1);
+        }
+    }
     let mut stringchars = string.chars();
     let mut captures: Vec<String> = Vec::new();
     let mut rest: Vec<String> = Vec::new();
@@ -616,9 +628,30 @@ pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, 
     rest.push(word);
     let mut outputs = Vec::<String>::new();
     for capture in captures {
-        match Lexer::tokenize(&capture).unwrap() {
+        outputs.push(execute_commands_once(shell, &capture)?);
+    }
+    let mut final_str = String::new();
+    let mut outputs = outputs.iter();
+    for string in rest {
+        final_str.push_str(&string);
+        if let Some(output) = outputs.next() {
+            final_str.push_str(output)
+        }
+    }
+
+    Ok(final_str)
+}
+
+fn execute_commands_once(shell: &mut Shell, input: &str) 
+-> Result<String, CmdSubError> {
+    if let Ok(result) = Lexer::tokenize(input) {
+        match result {
             UnmatchedDQuote | UnmatchedSQuote | UnmatchedBQuote => {
                 eprintln!("error: unmatched quote");
+                return Err(CmdSubError);
+            }
+            UnmatchedCmdSub => {
+                eprintln!("error: unmatched command substitution");
                 return Err(CmdSubError);
             }
             EndsOnAnd | EndsOnOr | EndsOnPipe => {
@@ -633,28 +666,27 @@ pub fn substitute_commands(shell: &mut Shell, string: String) -> Result<String, 
                 // expand_variables(shell, &mut tokens);
                 if let ParseResult::Good(jobs) = Lexer::parse_tokens(shell, tokens)? {
                     match execute::execute_jobs(shell, jobs, true) {
-                        Ok(jobs) => {
-                            outputs.push(jobs.1);
+                        Ok(mut jobs) => {
+                            if let Some('\n') = jobs.1.chars().last() {
+                                jobs.1.pop();
+                            }
+                            Ok(jobs.1)
                         }
                         Err(e) => {
                             eprintln!("error while executing: {}", e);
                             return Err(CmdSubError);
                         }
                     }
+                } else {
+                    eprintln!("error: incomplete shell struct");
+                    return Err(CmdSubError);
                 }
             }
         }
+    } else {
+        eprintln!("error: tokenization error");
+        Err(CmdSubError)
     }
-    let mut final_str = String::new();
-    let mut outputs = outputs.iter();
-    for string in rest {
-        final_str.push_str(&string);
-        if let Some(output) = outputs.next() {
-            final_str.push_str(output)
-        }
-    }
-
-    Ok(final_str)
 }
 
 #[cfg(test)]

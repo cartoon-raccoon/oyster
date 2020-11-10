@@ -283,6 +283,15 @@ fn execute_func(shell: &mut Shell, mut job: Job) -> Result<(i32, String), ShellE
                         shell::expand_variables(shell, string);
                     }
                     Quote::BQuote => {
+                        shell::expand_variables(shell, string);
+                        return shell::substitute_commands(
+                            shell, string.clone()
+                        ).unwrap_or_else(|_e| {
+                            eprintln!("oyster: error in command substitution");
+                            String::new()
+                        })
+                    }
+                    Quote::CmdSub => {
                         return shell::substitute_commands(
                             shell, string.clone()
                         ).unwrap_or_else(|_e| {
