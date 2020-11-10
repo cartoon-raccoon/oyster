@@ -29,6 +29,7 @@ pub enum TokenizeResult {
     UnmatchedSQuote,
     UnmatchedBQuote,
     UnmatchedCmdSub,
+    UnmatchedSqBrkt,
     EndsOnOr,
     EndsOnAnd,
     EndsOnPipe,
@@ -50,6 +51,9 @@ impl fmt::Display for TokenizeResult {
             }
             TokenizeResult::UnmatchedCmdSub => {
                 write!(f, "{}cmdsub >{}", BOLD, RESET)
+            }
+            TokenizeResult::UnmatchedSqBrkt => {
+                write!(f, "{}sqbrkt >{}", BOLD, RESET)
             }
             TokenizeResult::EndsOnAnd => {
                 write!(f, "{}cmdand >{}", BOLD, RESET )

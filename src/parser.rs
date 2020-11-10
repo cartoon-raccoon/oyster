@@ -446,6 +446,8 @@ impl Lexer {
             return Ok(TokenizeResult::UnmatchedBQuote);
         } else if in_cmdsub {
             return Ok(TokenizeResult::UnmatchedCmdSub);
+        } else if in_sqbrkt {
+            return Ok(TokenizeResult::UnmatchedSqBrkt);
         } else if in_squote {
             return Ok(TokenizeResult::UnmatchedSQuote); 
         } else if in_dquote {

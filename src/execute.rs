@@ -10,6 +10,7 @@ use crate::types::{
     CommandResult,
     ShellError,
     ExecType,
+    Variable,
 };
 use crate::core;
 use crate::shell::{
@@ -300,7 +301,13 @@ fn execute_func(shell: &mut Shell, mut job: Job) -> Result<(i32, String), ShellE
                         })
                     }
                     Quote::SQuote => {}
-                    Quote::SqBrkt => {}
+                    Quote::SqBrkt => {
+                        return shell::eval_sqbrkt(shell, string.clone())
+                        .unwrap_or_else(|e| {
+                            eprintln!("{}", e);
+                            Variable::from("")
+                        }).to_string()
+                    }
                 }
                 string.clone()
             }

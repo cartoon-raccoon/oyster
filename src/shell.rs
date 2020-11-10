@@ -836,6 +836,10 @@ fn execute_commands_once(shell: &mut Shell, input: &str)
                 eprintln!("error: unmatched command substitution");
                 return Err(CmdSubError);
             }
+            UnmatchedSqBrkt => {
+                eprintln!("error: unmatched square bracket");
+                return Err(CmdSubError);
+            }
             EndsOnAnd | EndsOnOr | EndsOnPipe => {
                 eprintln!("error: command ends on delimiter");
                 return Err(CmdSubError);
