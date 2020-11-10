@@ -7,7 +7,7 @@ It is important to know how Oyster processes your input. It breaks down the inpu
 
 Here the shell simply passes over the raw input string, detecting quotes and metacharacters, separating the string into tokens that encode information about the word type and the delimiters between them.
 
-When the tokenizer detects a quote metacharacter, it enters a quoted state that exits only when the matching quote is detected. If the tokenizer is still in the quoted state when it reaches the end of the line, it will continue to wait for input:
+When the tokenizer detects a quote, cmdsub or bracket metacharacter, it enters a quoted state that exits only when the matching metacharacter is detected. If the tokenizer is still in the quoted state when it reaches the end of the line, it will continue to wait for input:
 ```
 $ echo "hello
 dquote > "
@@ -18,7 +18,7 @@ hello
 
 This is where the shell interprets the token stream outputted by the tokenizer, breaking the stream into jobs and commands, interpreting metacharacters, constructing the required data structures that encode such information. Brace expansion occurs here.
 
-Similarly to quote detection in tokenization, the parser can detect scripting constructs, and will continue to wait for more input until it detects the scripting construct is complete:
+Similarly to quote detection in tokenization, the parser can detect scripting constructs, and will continue to wait for more input until it detects the scripting construct is complete wtih the `<construct> >` prompt:
 ```
 $ for i in [1..5]
 for > echo hello
@@ -105,10 +105,10 @@ I'd just like to interject for a moment. What you're refering to as Linux, is in
 Planned: Process substitution (`<(command)`)
 
 ### Command Substitution
-Oyster supports backtick-style command substitution:
+Oyster supports backtick and POSIX-style command substitution:
 ```
-$ echo "hello the time now is `date`"
-hello the time now is Sun 08 Nov 2020 02:10:46 PM +08
+$ echo "hello my name is $(echo sam) and the time now is `date`"
+hello my name is sam and the time now is Sun 08 Nov 2020 02:10:46 PM +08
 ```
 
 If the substitution contains invalid syntax, the parser returns an error and the substitution is aborted.
@@ -117,4 +117,3 @@ $ echo `date |` (syntax error: pipe without second command)
 error: command ends on delimiter
 oyster: parse error in command substitution
 ```
-Cmdsub-style substitution (`$(command)`) is planned.

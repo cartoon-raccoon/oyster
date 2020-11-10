@@ -12,11 +12,12 @@ Oyster is mostly a small side project that I work on in my spare time, and has a
 - Startup Sequence
 
 ### Contents
-1. [Commands](commands.md)
-2. [Expansions](expansions.md)
-3. [Job Control](jobcontrol.md)
-4. [Scripting](scripting.md)
-5. [Prompt](prompt.md)
+1. [Command Execution](commands.md)
+2. [Aliases and Expansions](expansions.md)
+3. [Functions and Variables](functions.md)
+4. [Scripting Constructs](scripting.md)
+5. [Job Control](jobcontrol.md) 
+6. [Prompt Customization](prompt.md)
 
 ## Definitions
 While this shell is mostly syntactically similar to Bash or Zsh, it does draw some ideas from the fish shell and Ion (the shell for Redox OS). It also uses some terms in its documentation that may need defining.
@@ -62,7 +63,7 @@ The shell detects a construct immediately after parsing pipelines into jobs, and
 
 e.g. This shell construct consists of an if statement nested inside a for loop.
 ```
-for i in [1..5]; if echo "inside the loop; echo "inside if"; end; done
+for i in [1..5]; if echo "inside the loop"; echo "inside if"; end; done
 ```
 
 **Function**

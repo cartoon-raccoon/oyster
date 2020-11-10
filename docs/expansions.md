@@ -1,4 +1,4 @@
-## Aliasing, Functions, Variables, and Expansions
+## Aliases and Expansions
 ### Command Aliasing
 Oyster supports command aliasing using the builtin `alias` command. The syntax is similar to zsh:
 
@@ -27,91 +27,87 @@ $ greet
 
 ```
 See [builtins](builtins.md) for more information.
-### Functions
-Similar to aliases are shell functions. These are defined with the `func` keyword, and are called with the name and `()` concatenated to the back.
-To denote the end of the function, you must use the `endfn` keyword.
-As with scripting constructs, the shell will wait for further input if it detects the function is not yet complete.
-```
-$ func say_hello
-func > echo Hi!
-func > echo What\'s popping?
-func > echo bye!
-func > endfn
 
-$ say_hello()
-Hi!
-What 's popping?
-bye!
-```
-Functions cannot be defined inside scripting constructs:
-```
-$ for i in [1..5];
-for > func thing
-error: cannot define function in shell construct
-```
-Functions can also accept parameters. The number of parameters they accept is defined in the function definition, after the function name:
-```
-$ func say_hi 2
-func > echo $say_hi0
-func > echo $say_hi1
-func > endfn
-```
-The parameters can be accessed with the variables `$<function><number>`, where function is the function name and number is its index in the parameter vector.
-To call a function with its parameters, call the function and place its parameters after the function call:
-```
-$ say_hi() hello there
-hello
-there
-```
-If the number of parameters passed and the number of parameters specified do not match, the function will return an error. Functions defined without a parameter count are automatically variadic and can accept any number of functions. If there are more variables specified in the function definition than parameters passed, the missing variables will expand to empty strings.
+### Variable Expansions
 
-All standard expansions such as variable expansion, command substitution and brace expansion, except globbing will work on function parameters.
+The shell can store pieces of data called variables. These are also used in the shell's programming language.
 
-Oyster also supports calling functions within functions:
-```
-$ func hello
-func > echo hello
-func > hello2()
-func > endfn 
+Variables are expanded by prepending `$` to the word that is the name of the variable.
 
-$ func hello2
-func > echo "hello again"
-func > endfn 
-
-$ hello()
-hello
-hello again
-```
-
-As such, recursive functions can be defined in Oyster. To prevent stack overflows in the shell itself, Oyster has an internal stack that grows every time a function is called, and shrinks when a function ends. Oyster also has a maximum recursion depth that is checked every time a function is called. Once this depth is exceeded, Oyster will automatically return an error.
-
-### Variables
-The shell can also accept user-defined variables. Variables have types; there are three main types: Str (string), Int (integer) and Flt (float).
-
-There are two ways to define variables: implicitly, and with the `let` command.
-```
-<name>=<value>
-let <type> <name> = <value>
-```
-The second way is the only way to assign quoted text. Variable types are mostly inferred: the first way will automatically infer types, and `let` will infer types if `<type>` is not specified. 
-
-Type inference works as follows: The shell attempts to parse the value as an int. If it fails, the shell then tries to parse as a float. If that too fails, the shell parses the value as a string.
-```
-let str number = 2.4 (can be parsed to flt, but assigned as str)
-let int number2 = 5 (parsed as int)
-let number3 = 3.14 (inferred as flt)
-let text = "hello" (inferred as str)
-```
-If the type is specified but the value cannot be parsed as that type, `let` returns an error.
-
-Expanding variables is similar to other shells: use `$`;
 ```
 $ let hello = "howdy pardner"
 $ echo $hello
 howdy pardner
 ```
+After variables are expanded, they are automatically treated as a string by the shell. To operate on variables as their native type, the operation needs to be enclosed in a square bracket. See below.
 
-As of now, `$` cannot be backslash-escaped. The only way to use a literal $ is to enclose it in single quotes (variable expansion is performed on double quotes). This is a bug and will be fixed.
+See [Functions and Variables](functions.md) for more information on variables.
+
+### Square Bracket Expansions
+
+Square brackets have different meanings to the shell in different contexts.
+
+When used in scripting constructs, their meanings again differ depending on the construct used. 
+
+In for loops, the square bracket expands to a range.
+
+`[1..=5]` is semantically equivalent to `1 2 3 4 5`.
+```
+$ for i in [1..=5]
+for > echo counting to $i
+for > done
+
+counting to 1
+counting to 2
+counting to 3
+counting to 4
+counting to 5
+```
+
+In if statements, the square bracket is used to compare variables.
+```
+$ let int number = 69
+$ if [$number < 420]
+if > echo "it's not time yet"
+if > end
+
+it's not time yet
+```
+Outside of scripting, square brackets are used to operate on variables.
+
+To operate on variables, enclose the operation inside a square bracket. This allows the shell to detect it and perform the operation.
+
+The syntax for square bracket operations is as follows:
+
+`[<operand> <operator> <operand>]`
+
+The operands and operator must be separated by spaces, if not the shell cannot properly parse the contents.
+
+The operand can be a literal, in which case the type is inferred, or can be a variable, designated with a `$`. If there is no `$`, the operand is treated as a literal.
+
+_Tip:_ To force the shell to treat the literal as a string, you can surround it in quotes.
+```
+$ echo ["1" + "2"]
+12 (concatenation instead of addition)
+```
+Other examples:
+```
+$ let pi = 3.141
+$ let e = 2.718
+$ echo [$pi * $e]
+8.537238
+
+$ echo [one + two]
+onetwo
+```
+If the operand is a variable, it is expanded before being operated on.
+Both operands are type checked before the operation is performed. If the types don't match, the shell returns an error.
+
+Currently, there are 4 operations that can be performed on variables: Add, Subtract, Multiply and Divide. For strings, only Add can be performed, which concatenates the strings together. Any other operator will cause the shell to return an error.
+```
+$ echo ["hello" - "llo"]
+oyster: operators other than `+` are not supported for strings
+```
 
 ### Tilde Expansions
 Oyster can also do tilde expansions.
