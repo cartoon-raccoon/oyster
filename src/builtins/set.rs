@@ -1,9 +1,16 @@
+use regex::Regex;
+
 use crate::shell::Shell;
 use crate::types::{Cmd, Variable as Var};
 
 pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
+    let re = Regex::new(r"[a-zA-Z0-9_]+").unwrap();
     // let <type> <name> = <value>
     if cmd.args.len() == 5 { //both type specification and equals
+        if !re.is_match(&cmd.args[2]) {
+            eprintln!("let: use alphanumeric characters and underscores only");
+            return 3
+        }
         if cmd.args[1] == "str" {
             shell.add_variable(&cmd.args[2], Var::Str(cmd.args[4].clone()));
         } else if cmd.args[1] == "int" {
@@ -25,6 +32,10 @@ pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
         }
     } else if cmd.args.len() == 4 {
         // let <name> = <value> (type inference)
+        if !re.is_match(&cmd.args[1]) {
+            eprintln!("let: use alphanumeric characters and underscores only");
+            return 3
+        }
         if cmd.args[2] != "=" {
             eprintln!("let: invalid syntax");
             return 1;

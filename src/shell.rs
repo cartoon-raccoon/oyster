@@ -23,6 +23,7 @@ use crate::types::{
     Job,
     JobTrack,
     Variable as Var,
+    Operator,
     Function,
     UnwrapOr,
     JobStatus,
@@ -334,7 +335,7 @@ pub fn search_in_path(command: &str) -> Result<PathBuf, ShellError> {
 
 ///Only assigns variables if it is the first word in the command.
 pub fn assign_variables(shell: &mut Shell, string: &mut String) -> bool {
-    let re = Regex::new(r"[a-zA-Z0-9]+=.+").unwrap();
+    let re = Regex::new(r"[a-zA-Z0-9_]+=.+").unwrap();
     if re.is_match(string) {
         let key_value: Vec<&str> = string.split("=").collect();
         shell.add_variable(key_value[0], Var::from(key_value[1]));
@@ -552,7 +553,7 @@ pub fn expand_braces(string: String)
 //TODO: file globbing, env expansion
 
 pub fn expand_variables(shell: &Shell, string: &mut String) {
-    let re = Regex::new(r"\$[a-zA-Z0-9]+").unwrap();
+    let re = Regex::new(r"\$[a-zA-Z0-9_]+").unwrap();
     for capture in re.captures_iter(&string.clone()) {
         if let Some(capture) = capture.get(0) {
             if let Some(var) = shell.get_variable(&capture.as_str()[1..]) {
@@ -573,6 +574,186 @@ pub fn expand_glob(string: &str) -> Result<Vec<String>, ShellError> {
         )?.to_string());
     }
     Ok(to_return)
+}
+
+pub fn eval_sqbrkt(shell: &mut Shell, string: String)
+-> Result<Var, ShellError> {
+    let string_error: &'static str = 
+    "oyster: operators other than `+` are not supported for strings";
+    let (lhs, op, rhs) = tokenize_sqbrkt(shell, string)?;
+    if Var::match_types(&lhs, &rhs) {
+        match lhs {
+            Var::Str(string) => {
+                if let Var::Str(string2) = rhs {
+                    if let Operator::Add = op {
+                        Ok(Var::Str(string + &string2))
+                    } else {
+                        Err(ShellError::from(string_error))
+                    }
+                } else {
+                    unreachable!()
+                }
+            }
+            Var::Int(number) => {
+                if let Var::Int(number2) = rhs {
+                    Ok(Var::Int(perform_ops_int(number, op, number2)?))
+                } else {
+                    unreachable!()
+                }
+            }
+            Var::Flt(float)  => {
+                if let Var::Flt(float2) = rhs {
+                    Ok(Var::Flt(perform_ops_flt(float, op, float2)?))
+                } else {
+                    unreachable!()
+                }
+            }
+        }
+    } else {
+        Err(ShellError::from("oyster: mismatched variable types"))
+    }
+}
+
+//Note: I wanted to do generics here but the kind of trait bounds
+//required to use for the items I wanted to return are not supported by Rust.
+fn perform_ops_int(lhs: i32, op: Operator, rhs: i32)
+-> Result<i32, ShellError> {
+    use Operator::*;
+    let unsupported_err: &'static str = 
+    "oyster: assignment operators are currently unsupported";
+    match op {
+        Add => {
+            Ok(lhs + rhs)
+        }
+        Sub => {
+            Ok(lhs - rhs)
+        }
+        Mul => {
+            Ok(lhs * rhs)
+        }
+        Div => {
+            Ok(lhs / rhs)
+        }
+        _ => {
+            Err(ShellError::from(unsupported_err))
+        }
+    }
+}
+
+fn perform_ops_flt(lhs: f32, op: Operator, rhs: f32)
+-> Result<f32, ShellError> {
+    use Operator::*;
+    let unsupported_err: &'static str = 
+    "oyster: assignment operators are currently unsupported";
+    match op {
+        Add => {
+            Ok(lhs + rhs)
+        }
+        Sub => {
+            Ok(lhs - rhs)
+        }
+        Mul => {
+            Ok(lhs * rhs)
+        }
+        Div => {
+            Ok(lhs / rhs)
+        }
+        _ => {
+            Err(ShellError::from(unsupported_err))
+        }
+    }
+}
+
+fn tokenize_sqbrkt(shell: &mut Shell, string: String)
+-> Result<(Var, Operator, Var), ShellError> {
+    let mut in_quote = false;
+    let mut parsed: Vec<(bool, String)> = Vec::new();
+    let mut word = String::new();
+    for c in string.chars() {
+        match c {
+            '"' => {
+                if !in_quote {
+                    in_quote = true;
+                } else {
+                    parsed.push((true, word.clone()));
+                    word.clear();
+                    in_quote = false;
+                }
+            }
+            ' ' => if !in_quote {
+                if !word.is_empty() {
+                    parsed.push((false, word.clone()));
+                }
+                word.clear();
+            }
+            _ => {
+                word.push(c);
+            }
+        }
+    }
+    if !word.is_empty() {
+        parsed.push((false, word));
+    }
+    if parsed.len() != 3 {
+        return Err(
+            ShellError::from(
+                "oyster: cannot parse square bracket"
+            )
+        )
+    }
+    if parsed[1].0 {
+        return Err(
+            ShellError::from(
+                "oyster: middle operator is quoted"
+            )
+        )
+    }
+    let lhs = if parsed[0].0 {
+        Var::Str(parsed[0].1.clone())
+    } else if parsed[0].1.starts_with("$") {
+        if let Some(var) = shell.get_variable(&parsed[0].1[1..]) {
+            var
+        } else {
+            return Err(
+                ShellError::from(
+                    format!("oyster: variable {} not found", &parsed[0].1[1..])
+                )
+            )
+        }
+    } else {
+        Var::from(&parsed[0].1)
+    };
+    let rhs = if parsed[2].0 {
+        Var::Str(parsed[2].1.clone())
+    } else if parsed[2].1.starts_with("$") {
+        if let Some(var) = shell.get_variable(&parsed[2].1[1..]) {
+            var
+        } else {
+            return Err(
+                ShellError::from(
+                    format!("oyster: variable {} not found", &parsed[2].1[1..])
+                )
+            )
+        }
+    } else {
+        Var::from(&parsed[2].1)
+    };
+    let op = match parsed[1].1.as_str() {
+        "+"  => {Operator::Add}
+        "-"  => {Operator::Sub}
+        "*"  => {Operator::Mul}
+        "/"  => {Operator::Div}
+        "+=" => {Operator::AddAssgn}
+        "-=" => {Operator::SubAssgn}
+        "*=" => {Operator::MulAssgn}
+        "/=" => {Operator::DivAssgn}
+        n@ _ => {
+            return Err(ShellError::from(
+                format!("oyster: invalid operator {}", n)
+            ))
+        }
+    };
+    Ok((lhs, op, rhs))
 }
 
 pub fn replace_aliases(shell: &Shell, word: String) -> String {

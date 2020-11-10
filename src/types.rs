@@ -12,6 +12,7 @@ use crate::shell::{
     Shell,
     expand_variables,
     expand_tilde,
+    eval_sqbrkt,
     substitute_commands,
     expand_glob,
 };
@@ -472,7 +473,9 @@ impl Cmd {
                 }
             }
             Quote::SQuote => {}
-            Quote::SqBrkt => {}
+            Quote::SqBrkt => {
+                cmd.cmd = (Quote::NQuote, eval_sqbrkt(shell, cmd.cmd.1)?.to_string())
+            }
         }
         let mut newargs: Vec<String> = Vec::new(); 
         for (quote, mut string) in cmd.args {
@@ -512,7 +515,10 @@ impl Cmd {
                     }
                 }
                 Quote::SQuote => {}
-                Quote::SqBrkt => {}
+                Quote::SqBrkt => {
+                    newargs.push(eval_sqbrkt(shell, string)?.to_string());
+                    continue;
+                }
             }
             newargs.push(string);
         }
@@ -628,6 +634,18 @@ impl fmt::Display for Variable {
             }
         }
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Operator {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    AddAssgn,
+    SubAssgn,
+    MulAssgn,
+    DivAssgn,
 }
 
 /// Emitted by `parse_tokens()`, its data is consumed by `execute_jobs()`
