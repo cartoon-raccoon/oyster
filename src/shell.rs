@@ -583,7 +583,8 @@ pub fn replace_aliases(shell: &Shell, word: String) -> String {
 }
 
 // This command is gonna be sooo fucking slow
-pub fn substitute_commands(shell: &mut Shell, mut string: String) -> Result<String, CmdSubError> {
+pub fn substitute_commands(shell: &mut Shell, string: &str) -> Result<String, CmdSubError> {
+    let mut string = string.to_string();
     // Tokenizing and capturing cmbsubs first
     let cmdsub_re = Regex::new(
         "\\$\\([\\a-zA-Z0-9 \"-.@~/\\|<>\\&$()]+\\)"
@@ -737,7 +738,7 @@ mod tests {
         let mut shell = Shell::new();
         let command = String::from("`echo hello`");
         assert_eq!(
-            substitute_commands(&mut shell, command).unwrap(),
+            substitute_commands(&mut shell, &command).unwrap(),
             String::from("hello")
         )
     }

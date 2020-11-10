@@ -13,7 +13,10 @@ use crate::types::{
     TokenizeResult,
     ParseResult,
 };
-use crate::shell::Shell;
+use crate::shell::{
+    Shell,
+    substitute_commands,
+};
 use crate::execute::{
     execute_jobs,
     execute as exec,
@@ -309,8 +312,26 @@ fn eval_condition(shell: &mut Shell, mut condition: Job)
                 )
             )
         }
-    } else if condition.cmds[0].cmd.0 == Quote::BQuote {
-        unimplemented!()
+    } else if condition.cmds[0].cmd.0 == Quote::CmdSub {
+        let lhs = Variable::Str(substitute_commands(
+            shell, 
+            &condition.cmds[0].args[0].1
+        )?);
+        let op = if let Some(eqtest) 
+        = get_valid_operator(&condition.cmds[0].args[1].1) {
+            eqtest
+        } else {
+            return Err(ShellError::from("oyster: invalid operator"))
+        };
+        let rhs = Variable::Str(condition.cmds[0].args[2].1.clone());
+        match op {
+            Eq => {Ok(lhs == rhs)}
+            Ne => {Ok(lhs != rhs)}
+            Lt => {Ok(lhs  < rhs)}
+            Gt => {Ok(lhs  > rhs)}
+            Le => {Ok(lhs <= rhs)}
+            Ge => {Ok(lhs >= rhs)}
+        }
     } 
     else {
         return Ok(exec(shell, condition, false, false)?.status == 0)
@@ -391,34 +412,26 @@ fn tokenize_sqbrkt(shell: &mut Shell, condition: String)
     } else {
         Variable::from(&parsed[2].1)
     };
-    let comparator = match parsed[1].1.as_str() {
-        "-eq" | "==" => {
-            EqTest::Eq
-        }
-        "-ne" | "!=" => {
-            EqTest::Ne
-        }
-        "-lt" | "<"  => {
-            EqTest::Lt
-        }
-        "-gt" | ">"  => {
-            EqTest::Gt
-        }
-        "-le" | "<=" => {
-            EqTest::Le
-        }
-        "-ge" | ">=" => {
-            EqTest::Ge
-        }
-        _ => {
-            return Err(
-                ShellError::from(
-                    "oyster: unrecognized comparison operator"
-                )
-            )
-        }
+    let comparator = if let Some(eqtest) = get_valid_operator(&parsed[1].1) {
+        eqtest
+    } else {
+        return Err(
+            ShellError::from("oyster: invalid operator")
+        )
     };
     Ok((lhs, comparator, rhs))
+}
+
+fn get_valid_operator(op: &str) -> Option<EqTest> {
+    match op {
+        "==" | "-eq" => { Some(EqTest::Eq) }
+        "!=" | "-ne" => { Some(EqTest::Ne) }
+        "<"  | "-lt" => { Some(EqTest::Lt) }
+        ">"  | "-gt" => { Some(EqTest::Gt) }
+        "<=" | "-le" => { Some(EqTest::Le) }
+        ">=" | "-ge" => { Some(EqTest::Ge) }
+        _ => { None }
+    }
 }
 
 /// Splits a single scope into its individual constructs

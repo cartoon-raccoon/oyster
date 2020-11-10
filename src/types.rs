@@ -451,7 +451,7 @@ impl Cmd {
                 expand_variables(shell, &mut cmd.cmd.1);
             }
             Quote::CmdSub => {
-                match substitute_commands(shell, cmd.cmd.1) {
+                match substitute_commands(shell, &cmd.cmd.1) {
                     Ok(string) => {
                         cmd.cmd = (Quote::NQuote, string);
                     }
@@ -462,7 +462,7 @@ impl Cmd {
             }
             Quote::BQuote => {
                 expand_variables(shell, &mut cmd.cmd.1);
-                match substitute_commands(shell, cmd.cmd.1) {
+                match substitute_commands(shell, &cmd.cmd.1) {
                     Ok(string) => {
                         cmd.cmd = (Quote::NQuote, string);
                     }
@@ -489,7 +489,7 @@ impl Cmd {
                     expand_variables(shell, &mut string);
                 }
                 Quote::CmdSub => {
-                    match substitute_commands(shell, string) {
+                    match substitute_commands(shell, &string) {
                         Ok(string) => {
                             newargs.push(string);
                             continue;
@@ -501,7 +501,7 @@ impl Cmd {
                 }
                 Quote::BQuote => {
                     expand_variables(shell, &mut string);
-                    match substitute_commands(shell, string) {
+                    match substitute_commands(shell, &string) {
                         Ok(string) => {
                             newargs.push(string);
                             continue;
