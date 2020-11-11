@@ -77,6 +77,10 @@ pub enum Construct {
         loop_over: Vec<Variable>,
         code: Vec<Box<Construct>>,
     },
+    While {
+        condition: Job,
+        code: Vec<Box<Construct>>,
+    },
     /// Represents an `if/elif/else` statement.
     If {
         conditions: Vec<(Job, bool)>,
@@ -147,6 +151,38 @@ impl Construct {
                     code: final_code,
                 })
             }
+            "while" => {
+                if let Some(last) = raw.iter().last() {
+                    //last.cmds should not be empty
+                    if last.cmds[0].cmd.1 != "done" {
+                        return
+                        Err(
+                            ShellError::from("oyster: could not parse script")
+                        )
+                    }
+                }
+                raw.remove(len - 1);
+                let mut details = raw.remove(0);
+                if details.cmds[0].args.len() < 2 {
+                    return
+                    Err(
+                        ShellError::from("oyster: could not parse while loop")
+                    )
+                }
+                let condition_cmd = details.cmds[0].args[1].clone();
+                let condition_args = details.cmds[0].args[1..].to_vec();
+                details.cmds[0].cmd = condition_cmd;
+                details.cmds[0].args = condition_args;
+                let coden = split_on_same_scope(raw);
+                let mut final_code = Vec::new();
+                for construct in coden {
+                    final_code.push(Box::new(Construct::build(construct)?));
+                }
+                Ok(Construct::While{
+                    condition: details,
+                    code: final_code,
+                })
+            }
             "if" => {
                 let mut final_code = Vec::new();
                 let mut conditions = Vec::new();
@@ -194,6 +230,18 @@ impl Construct {
                     }
                 }
                 shell.remove_variable(&loop_var);
+                Ok(status)
+            }
+            Construct::While{condition, code} => {
+                let mut status: i32 = 0;
+
+                while eval_condition(shell, condition.clone())? {
+                    let code2 = code.clone();
+                    for block in code2 {
+                        status = block.execute(shell)?;
+                    }
+                }
+
                 Ok(status)
             }
             Construct::If {conditions, mut code} => {
@@ -294,6 +342,11 @@ fn eval_condition(shell: &mut Shell, mut condition: Job)
     use EqTest::*;
     if condition.cmds.len() == 1 &&
        condition.cmds[0].cmd.0 == Quote::SqBrkt {
+        if condition.cmds[0].cmd.1.trim() == "true" {
+            return Ok(true)
+        } else if condition.cmds[0].cmd.1.trim() == "false" {
+            return Ok(false)
+        }
         let condition = condition.cmds.remove(0).cmd.1;
         let (lhs, eq, rhs) = tokenize_sqbrkt(shell, condition)?;
         if Variable::match_types(&lhs, &rhs) {
@@ -441,7 +494,7 @@ fn split_on_same_scope(raw: Vec<Job>) -> Vec<Vec<Job>> {
     let mut nesting_level: usize = 0;
     for job in raw {
         match job.cmds[0].cmd.1.as_str() {
-            "for" | "if" => {
+            "for" | "if" | "while" => {
                 buffer.push(job);
                 nesting_level += 1;
             }
@@ -476,7 +529,7 @@ fn split_on_branches(raw: Vec<Job>)
     let mut condition = None;
     for job in raw {
         match job.cmds[0].cmd.1.as_str() {
-            "for" => {
+            "for" | "while" => {
                 buffer.push(job);
                 nesting_level += 1;
             }

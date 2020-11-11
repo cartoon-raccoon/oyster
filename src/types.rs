@@ -79,9 +79,9 @@ impl fmt::Display for TokenizeResult {
 #[derive(Debug, Clone)]
 pub enum ParseResult {
     For,
+    While,
     If,
     Func,
-    //While,
     //Case,
     Good(Vec<Job>),
 }
@@ -91,6 +91,9 @@ impl fmt::Display for ParseResult {
         match self {
             ParseResult::For => {
                 write!(f, "{}for >{}", BOLD, RESET )
+            }
+            ParseResult::While => {
+                write!(f, "{}while >{}", BOLD, RESET)
             }
             ParseResult::If => {
                 write!(f, "{}if >{}", BOLD, RESET )

@@ -226,22 +226,15 @@ fn extract_constructs(jobs: Vec<Job>) -> Result<Vec<ExecType>, ShellError> {
     let mut buffer = Vec::new();
 
     //tracks the top level of the shell construct
-    let mut in_for = false;
-    let mut in_if = false;
+    let mut in_construct = false;
     let mut nesting_level: isize = 0;
 
     for job in jobs {
         if job.cmds[0].cmd.0 == Quote::NQuote {
             match job.cmds[0].cmd.1.as_str() {
-                "for" => {
-                    if !in_if && !in_for {
-                        in_for = true; 
-                    }
-                    nesting_level += 1;
-                }
-                "if" => { 
-                    if !in_if && !in_for {
-                        in_if = true;
+                "for" | "while" | "if" => {
+                    if !in_construct {
+                        in_construct = true; 
                     }
                     nesting_level += 1;
                 }
@@ -251,12 +244,12 @@ fn extract_constructs(jobs: Vec<Job>) -> Result<Vec<ExecType>, ShellError> {
                 _ => {}
             }
         }
-        if in_if || in_for {
+        if in_construct {
             buffer.push(job);
             if nesting_level == 0 {
                 to_return.push(ExecType::Script(buffer.clone()));
                 buffer.clear();
-                in_for = false; in_if = false;
+                in_construct = false;
             }
         } else {
             to_return.push(ExecType::Job(job));

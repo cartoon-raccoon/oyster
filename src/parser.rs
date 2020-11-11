@@ -731,17 +731,23 @@ impl Lexer {
                                 "for" => {
                                     stack.push(ParseResult::For);
                                 }
+                                "while" => {
+                                    stack.push(ParseResult::While);
+                                }
                                 "if" => {
                                     stack.push(ParseResult::If);
                                 }
                                 n@ "elif" | n@ "else" => {
                                     if let Some(&ParseResult::If) = stack.last() {
+
                                     } else {
                                         return Err(ParseError::GenericError(n.to_string()))
                                     }
                                 }
                                 n@ "done" => {
                                     if let Some(&ParseResult::For) = stack.last() {
+                                        stack.pop();
+                                    } else if let Some(&ParseResult::While) = stack.last() {
                                         stack.pop();
                                     } else {
                                         return Err(ParseError::GenericError(n.to_string()))
