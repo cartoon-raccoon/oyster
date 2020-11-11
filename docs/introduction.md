@@ -17,7 +17,8 @@ Oyster is mostly a small side project that I work on in my spare time, and has a
 3. [Functions and Variables](functions.md)
 4. [Scripting Constructs](scripting.md)
 5. [Job Control](jobcontrol.md) 
-6. [Prompt Customization](prompt.md)
+6. [Builtin Commands](builtins.md)
+7. [Prompt Customization](prompt.md)
 
 ## Definitions
 While this shell is mostly syntactically similar to Bash or Zsh, it does draw some ideas from the fish shell and Ion (the shell for Redox OS). It also uses some terms in its documentation that may need defining.

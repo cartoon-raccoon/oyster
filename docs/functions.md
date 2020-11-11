@@ -4,7 +4,7 @@ Oyster provides various ways to manipulate data within the shell itself. The she
 To look at the other programming constructs, see [Scripting Constructs](scripting.md).
 
 ### Functions
-Functions are simply blocks of commands assigned to a common identifier, and are run together, in the sequence specified. While similar to aliases. functions differ in that like real programming functions, they can be passed parameters. They are also more versatile than aliases, in that they can easily contain scripting constructs.
+Functions are simply blocks of commands assigned to a common identifier, and are run together, in the sequence specified. While similar to aliases. functions differ in that like real programming functions, they can be passed parameters. They are also more versatile than aliases, in that they can easily contain scripting constructs, and can be used to run multiple scripting constructs on demand with a single word.
 
 Functions are defined with the `func` keyword, and are called with the name and `()` concatenated to the back.
 To denote the end of the function, you must use the `endfn` keyword.
@@ -98,6 +98,8 @@ There are two ways to define variables: implicitly, and with the `let` command.
 let <type> <name> = <value>
 ```
 The second way is the only way to assign quoted text. Variable types are mostly inferred: the first way will automatically infer types, and `let` will infer types if `<type>` is not specified.
+
+Ints are stored internally as signed 32-bit numbers, and floats are stored as signed 32-bit floats. Oyster can detect overflow or underflow when performing operations, and will return an error if this happens. If attempting to assign a value greater than the maximum value of the variable type, `let` will return an error if the type is specified, if not it will be follow type inference procedure and assign the variable as the type that first passes the parse.
 
 Variables can only accept alphanumeric names. Implicit declaration will fail the check if non-alphanumeric characters are in the variable name, and the word will be executed as a command:
 ```
