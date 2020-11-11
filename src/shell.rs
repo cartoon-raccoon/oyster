@@ -623,12 +623,21 @@ fn perform_ops_int(lhs: i32, op: Operator, rhs: i32)
     "oyster: assignment operators are currently unsupported";
     match op {
         Add => {
+            if lhs == i32::MAX {
+                return Err(ShellError::from("error: variable overflow"))
+            }
             Ok(lhs + rhs)
         }
         Sub => {
+            if lhs == i32::MIN {
+                return Err(ShellError::from("error: variable underflow"))
+            }
             Ok(lhs - rhs)
         }
         Mul => {
+            if lhs as i64 * rhs as i64 >= i32::MAX as i64 {
+                return Err(ShellError::from("error variable overflow"))
+            }
             Ok(lhs * rhs)
         }
         Div => {
