@@ -20,6 +20,7 @@ pub fn run(mut cmd: Cmd) -> i32 {
                 println!("{}: built in shell command", name);
             }
             n@ "for" |
+            n@ "while" |
             n@ "if" |
             n@ "else" |
             n@ "elif" |
