@@ -535,6 +535,9 @@ fn split_on_branches(raw: Vec<Job>)
             }
             "if" => { 
                 nesting_level += 1;
+                if job.cmds[0].args.len() < 2 {
+                    return Err(ShellError::from("oyster: syntax error (no condition)"))
+                }
                 if nesting_level == 0 {
                     let command = if job.cmds[0].args[1].1.starts_with("!") {
                         (
@@ -561,6 +564,9 @@ fn split_on_branches(raw: Vec<Job>)
                 }
             }
             "elif" => {
+                if job.cmds[0].args.len() < 2 {
+                    return Err(ShellError::from("oyster: syntax error (no condition)"))
+                }
                 if nesting_level == 0 {
                     if job == Job::default() {
                         return Err(
