@@ -131,6 +131,21 @@ If a word contains the characters `/` or `*`, it is treated as a path to be glob
 `*` lists all the files in that directory that match the pattern.
 `**` recursively lists all the files in the directory and its subdirectories.
 
+Glob expansions can be used in for loops:
+```
+$ for i in ~/*
+for > echo $i
+for > done
+
+/home/sammy/Desktop
+/home/sammy/Documents
+/home/sammy/Downloads
+/home/sammy/Music
+/home/sammy/Pictures
+/home/sammy/Projects
+/home/sammy/Videos
+```
+
 Right now, `*` cannot be backslash-escaped. To remove its meaning you need to enclose it in quotes. This is a bug and will be fixed.
 
 ### Brace Expansion

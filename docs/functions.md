@@ -99,7 +99,7 @@ let <type> <name> = <value>
 ```
 The second way is the only way to assign quoted text. Variable types are mostly inferred: the first way will automatically infer types, and `let` will infer types if `<type>` is not specified.
 
-Ints are stored internally as signed 32-bit numbers, and floats are stored as signed 32-bit floats. Oyster can detect overflow or underflow when performing operations, and will return an error if this happens. If attempting to assign a value greater than the maximum value of the variable type, `let` will return an error if the type is specified, if not it will be follow type inference procedure and assign the variable as the type that first passes the parse.
+Ints are stored internally as signed 32-bit numbers, and floats are stored as signed 32-bit floats. Oyster can detect overflow or underflow when performing operations, and will return an error if this happens. If attempting to assign a value greater than the maximum value of the variable type, `let` will return an error if the type is specified, if not it will follow type inference procedure and assign the variable as the type that first passes the parse.
 
 Variables can only accept alphanumeric names. Implicit declaration will fail the check if non-alphanumeric characters are in the variable name, and the word will be executed as a command:
 ```

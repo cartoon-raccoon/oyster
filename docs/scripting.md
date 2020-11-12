@@ -28,15 +28,23 @@ Square brackets have special meaning to the construct interpreter, depending on 
 
 **Range Expansions**
 
-`[<integer>..<integer>]`
+`[<integer>..=<integer>..<integer>]`
 
-This expands to a list of strings from the first integer, incrementing by 1, up until just before the second integer.
+This expands to a list of strings from the first integer, stepping over by the value of the third integer, up until just before the second integer. The third integer is optional, and if not specified, the range will increment/decrement by 1. If the first integer is lesser than the second, the range will increment, else it will decrement.
+
+The third integer must be positive; the shell will throw an error if it is not.
 
 e.g. `[1..5]` expands to `1 2 3 4`.
 
 To include the second integer, use `[<integer>..=<integer>]`.
 
 e.g. `[1..=5]` expands to `1 2 3 4 5`.
+
+`[0..=10..2]` expands to `0 2 4 6 8 10`.
+
+`=` does not respect step over, and will end the range on the second integer.
+
+e.g. `[1..=10..2]` expands to `1 3 5 7 9 10`.
 
 **Equality Evaluations**
 
@@ -128,7 +136,7 @@ The simplest loop-over is a simple list:
 
 The only square bracket notation here is the range notation:
 
-Brace expansions are also valid in for loops. They expand to a list of strings accordingly. Glob expansions will be implemented.
+Brace and glob expansions are also valid in for loops. They expand to a list of strings accordingly.
 
 The variable in the loop declaration is a valid shell variable, and can be expanded:
 ```
