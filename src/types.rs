@@ -14,7 +14,6 @@ use crate::shell::{
     expand_tilde,
     eval_sqbrkt,
     substitute_commands,
-    expand_glob,
 };
 use crate::prompt::{
     BOLD,
@@ -139,6 +138,9 @@ pub enum ParseError {
     InvalidRDSyntax,
     MetacharsInBrace,
     FuncInShellConst,
+    InvalidGlob,
+    GlobError(String),
+    ConversionError,
     GenericError(String),
     EmptyCommand,
 }
@@ -175,6 +177,15 @@ impl fmt::Display for ParseError {
             ParseError::FuncInShellConst => {
                 write!(f, "error: cannot define function in shell construct")
             }
+            ParseError::InvalidGlob => {
+                write!(f, "error: invalid glob pattern syntax")
+            }
+            ParseError::GlobError(error) => {
+                write!(f, "oyster: {}", error)
+            }
+            ParseError::ConversionError => {
+                write!(f, "oyster: os string conversion error")
+            }
             ParseError::GenericError(string) => {
                 write!(f, "error: parse error near `{}`", string)
             }
@@ -182,6 +193,18 @@ impl fmt::Display for ParseError {
                 write!(f, "error: empty command")
             }
         }
+    }
+}
+
+impl From<PatternError> for ParseError {
+    fn from(_error: PatternError) -> Self {
+        ParseError::InvalidGlob
+    }
+}
+
+impl From<GlobError> for ParseError {
+    fn from(error: GlobError) -> Self {
+        ParseError::GlobError(error.to_string())
     }
 }
 
@@ -490,10 +513,6 @@ impl Cmd {
                 Quote::NQuote => {
                     expand_variables(shell, &mut string);
                     expand_tilde(shell, &mut string);
-                    if string.contains("*") {
-                        newargs.extend(expand_glob(&string)?);
-                        continue;
-                    }
                 }
                 Quote::DQuote => {
                     expand_variables(shell, &mut string);

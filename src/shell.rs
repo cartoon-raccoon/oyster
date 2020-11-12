@@ -28,6 +28,7 @@ use crate::types::{
     UnwrapOr,
     JobStatus,
     ShellError,
+    ParseError,
     Quote,
 };
 use crate::execute;
@@ -565,12 +566,12 @@ pub fn expand_variables(shell: &Shell, string: &mut String) {
     }
 }
 
-pub fn expand_glob(string: &str) -> Result<Vec<String>, ShellError> {
+pub fn expand_glob(string: &str) -> Result<Vec<String>, ParseError> {
     let mut to_return = Vec::new();
     for path in glob(string)? {
         let path = path?;
         to_return.push(path.to_str().ok_or(
-            ShellError::from("oyster: os string conversion error")
+            ParseError::ConversionError
         )?.to_string());
     }
     Ok(to_return)

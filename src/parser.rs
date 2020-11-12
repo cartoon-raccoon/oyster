@@ -13,6 +13,7 @@ use crate::shell::{
     Shell,
     expand_variables,
     expand_braces,
+    expand_glob,
     expand_tilde,
     replace_aliases,
 };
@@ -718,7 +719,7 @@ impl Lexer {
                             buffer.clear();
                         }
                     }
-                    Token::Word(string) => {
+                    Token::Word(mut string) => {
                         if cmd_idx == 0 {
                             //println!("{:?}", stack);
                             match string.as_str() {
@@ -769,6 +770,15 @@ impl Lexer {
                                 }
                                 _ => {}
                             }
+                        }
+                        if string.contains("*") {
+                            expand_tilde(shell, &mut string);
+                            buffer.extend(expand_glob(&string)?.into_iter().map(
+                                |string| {
+                                    (Quote::NQuote, string)
+                                }
+                            ).collect::<Vec<(Quote, String)>>());
+                            continue;
                         }
                         buffer.push((Quote::NQuote, string));
                     }

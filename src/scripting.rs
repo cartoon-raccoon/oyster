@@ -123,7 +123,7 @@ impl Construct {
                 if details.args.len() < 4 {
                     return
                     Err(
-                        ShellError::from("oyster: could not parse for loop")
+                        ShellError::from("oyster: insufficient arguments in for loop")
                     )
                 }
                 if details.args[2].1 != "in" {
