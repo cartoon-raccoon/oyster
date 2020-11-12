@@ -21,7 +21,7 @@ Oyster is mostly a small side project that I work on in my spare time, and has a
 7. [Prompt Customization](prompt.md)
 
 ## Definitions
-While this shell is mostly syntactically similar to Bash or Zsh, it does draw some ideas from the fish shell and Ion (the shell for Redox OS). It also uses some terms in its documentation that may need defining.
+While this shell is mostly syntactically similar to Bash or Zsh, it does have a few ideas of its own, mostly changing some syntax around, while drawing some ideas from the fish shell and Ion (the shell for Redox OS). It also uses some terms in its documentation that may need defining.
 
 **Metacharacter**
 
@@ -44,7 +44,7 @@ e.g. `sudo pacman -Syu`
 
 **Pipeline**
 
-A group of commands delimited by pipes `|`.
+A group of commands separated by pipes `|`.
 
 Oyster always builds commands into a pipeline. A single command is parsed into a pipeline containing one command.
 
@@ -79,3 +79,17 @@ e.g. `execute()`
 When Oyster is invoked, it does a number of things. Firstly, it checks whether it is a login shell. Next, it logs all the environment variables with which it is launched. Finally, it accesses and reads its RC file.
 
 The RC file is normally `~/.config/oyster/oshrc`, and is basically a shell script interpreted by the shell. In it contains various alias settings, env var exports, prompt definition, etc.
+
+## POSIX Compliance
+Oyster is already not POSIX-compliant, because of some of its syntax (the same contruct is used to expand ranges, operate on variables and test equality), and its limited feature set. Bash and zsh scripts definitely will not work on this shell.
+
+Oyster is mainly designed for everyday work such as running individual commands, and can provide some simple scripting when needed. When heavy lifting is needed in the form of a long, complex shell script, one can invoke Bash or zsh to run it, especially with the UNIX shebang.
+
+~~I may or may not be using the lightweightedness of Oyster as an excuse for its limited features.~~
+
+## OS Compatibility
+Oyster will definitely not run on Windows. It makes raw system calls that are unique to or called differently on UNIX systems such as fork or execve (the two syscalls at the core of Oyster's functionality). In addition, the way it treats paths is different than Windows. The Rust standard library provides the `std::process::Command` type that is used to abstract away the kernel-level details, but Oyster does not use it.
+
+Oyster should run perfectly well on any Linux system that has a Rust compiler and build system, as well as ncurses and sqlite3 installed (for the readline library and history expansion).
+
+While macOS is technically a UNIX system, it may have some quirks that may require messing with the execution source code. Other parts of it should work properly.

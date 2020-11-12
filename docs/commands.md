@@ -16,9 +16,9 @@ hello
 
 2. Parsing
 
-This is where the shell interprets the token stream outputted by the tokenizer, breaking the stream into jobs and commands, interpreting metacharacters, constructing the required data structures that encode such information. Brace expansion occurs here.
+This is where the shell interprets the token stream outputted by the tokenizer, breaking the stream into jobs and commands, interpreting metacharacters, constructing the required data structures that encode such information. Brace and glob expansion occur here.
 
-Similarly to quote detection in tokenization, the parser can detect scripting constructs, and will continue to wait for more input until it detects the scripting construct is complete with the `<construct> >` prompt:
+Similarly to quote detection in tokenization, the parser can detect scripting constructs and functions, and will continue to wait for more input until it detects the scripting construct is complete. It indicates this status with the `<construct> >` prompt:
 ```
 $ for i in [1..5]
 for > echo hello
