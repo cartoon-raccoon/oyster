@@ -8,6 +8,9 @@ mod prompt;
 mod builtins;
 mod scripting;
 
+#[macro_use]
+extern crate lazy_static;
+
 use std::error::Error;
 use std::io::{self, Write};
 use std::env;

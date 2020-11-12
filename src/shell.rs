@@ -336,8 +336,10 @@ pub fn search_in_path(command: &str) -> Result<PathBuf, ShellError> {
 
 ///Only assigns variables if it is the first word in the command.
 pub fn assign_variables(shell: &mut Shell, string: &mut String) -> bool {
-    let re = Regex::new(r"[a-zA-Z0-9_]+=.+").unwrap();
-    if re.is_match(string) {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"[a-zA-Z0-9_]+=.+").unwrap();
+    }
+    if RE.is_match(string) {
         let key_value: Vec<&str> = string.split("=").collect();
         shell.add_variable(key_value[0], Var::from(key_value[1]));
         return true;
@@ -554,8 +556,10 @@ pub fn expand_braces(string: String)
 //TODO: file globbing, env expansion
 
 pub fn expand_variables(shell: &Shell, string: &mut String) {
-    let re = Regex::new(r"\$[a-zA-Z0-9_]+").unwrap();
-    for capture in re.captures_iter(&string.clone()) {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"\$[a-zA-Z0-9_]+").unwrap();
+    }
+    for capture in RE.captures_iter(&string.clone()) {
         if let Some(capture) = capture.get(0) {
             if let Some(var) = shell.get_variable(&capture.as_str()[1..]) {
                 *string = string.replacen(capture.as_str(), &var.to_string(), 1);
@@ -777,10 +781,12 @@ pub fn replace_aliases(shell: &Shell, word: String) -> String {
 pub fn substitute_commands(shell: &mut Shell, string: &str) -> Result<String, CmdSubError> {
     let mut string = string.to_string();
     // Tokenizing and capturing cmbsubs first
-    let cmdsub_re = Regex::new(
-        "\\$\\([\\a-zA-Z0-9 \"-.@~/\\|<>\\&$()]+\\)"
-    ).unwrap();
-    for capture in cmdsub_re.captures_iter(&string.clone()) {
+    lazy_static! {
+        static ref CMDSUB_RE: Regex = Regex::new(
+            "\\$\\([\\a-zA-Z0-9 \"-.@~/\\|<>\\&$()]+\\)"
+        ).unwrap();
+    }
+    for capture in CMDSUB_RE.captures_iter(&string.clone()) {
         if let Some(capture) = capture.get(0) {
             let mut capture = capture.as_str().to_string();
             capture.pop();
