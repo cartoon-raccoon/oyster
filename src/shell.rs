@@ -582,7 +582,7 @@ pub fn eval_sqbrkt(shell: &mut Shell, string: String)
     let string_error: &'static str = 
     "oyster: operators other than `+` are not supported for strings";
     let (lhs, op, rhs) = tokenize_sqbrkt(shell, string)?;
-    if Var::match_types(&lhs, &rhs) {
+    if Var::types_match(&lhs, &rhs) {
         match lhs {
             Var::Str(string) => {
                 if let Var::Str(string2) = rhs {

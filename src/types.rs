@@ -605,7 +605,7 @@ impl Variable {
         }
     }
 
-    pub fn match_types(lhs: &Variable, rhs: &Variable) -> bool {
+    pub fn types_match(lhs: &Variable, rhs: &Variable) -> bool {
         match lhs {
             Variable::Int(_) => {
                 if let Variable::Int(_) = rhs {
