@@ -302,11 +302,21 @@ fn expand_sqbrkt_range(brkt: String) -> Result<Vec<(Quote, String)>, ShellError>
     let mut range: Vec<String> = brkt.split("..").filter(
         |string| !string.is_empty()
     ).map(|string| string.to_string()).collect();
-    if range.len() != 2 {
+    if range.len() < 2 || range.len() > 3 {
         return Err(
             ShellError::from("oyster: error expanding range")
         )
     }
+    let step_by = if range.len() == 3 {
+        match range[2].parse::<u32>() {
+            Ok(int) => int,
+            Err(_) => {
+                return Err(
+                    ShellError::from("oyster: invalid argument in range")
+                )
+            }
+        }
+    } else {1};
     let up_to_equals = range[1].starts_with("=");
     if up_to_equals {
         let replace = range[1].replace("=", "");
@@ -320,16 +330,23 @@ fn expand_sqbrkt_range(brkt: String) -> Result<Vec<(Quote, String)>, ShellError>
             }
             Err(_) => {
                 return Err(
-                    ShellError::from("oyster: non-integer character in range")
+                    ShellError::from("oyster: invalid argument in range")
                 )
             }
         }
     }
     let (mut start, end) = (numeric[0], numeric[1]);
     let mut to_return = Vec::new();
-    while start < end {
-        to_return.push((Quote::NQuote, start.to_string()));
-        start += 1;
+    if start < end {
+        while start < end {
+            to_return.push((Quote::NQuote, start.to_string()));
+            start += step_by as i32;
+        }
+    } else {
+        while start > end {
+            to_return.push((Quote::NQuote, start.to_string()));
+            start -= step_by as i32;
+        }
     }
     if up_to_equals {
         to_return.push((Quote::NQuote, end.to_string()));
@@ -349,7 +366,7 @@ fn eval_condition(shell: &mut Shell, mut condition: Job)
         }
         let condition = condition.cmds.remove(0).cmd.1;
         let (lhs, eq, rhs) = tokenize_sqbrkt(shell, condition)?;
-        if Variable::match_types(&lhs, &rhs) {
+        if Variable::types_match(&lhs, &rhs) {
             match eq {
                 Eq => {return Ok(lhs == rhs)}
                 Ne => {return Ok(lhs != rhs)}
@@ -396,7 +413,7 @@ fn tokenize_sqbrkt(shell: &mut Shell, condition: String)
     let mut in_quote = false;
     let mut parsed: Vec<(bool, String)> = Vec::new();
     let mut word = String::new();
-    for c in condition.chars() {
+    for c in condition.trim().chars() {
         match c {
             '"' => {
                 if !in_quote {
