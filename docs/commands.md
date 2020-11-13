@@ -110,6 +110,11 @@ Oyster supports backtick and POSIX-style command substitution:
 $ echo "hello my name is $(echo sam) and the time now is `date`"
 hello my name is sam and the time now is Sun 08 Nov 2020 02:10:46 PM +08
 ```
+Backtick substitution is mostly more appropriate for inline substitutions. With POSIX-style substitutions, no variables are expanded and the entire enclosed string is treated as is. Backtick substitutions perform variable expansion.
+
+When the shell detects a command substitution, it executes the enclosed command separately, with stdout piped back into it for collection. It replaces the substitution with a list of strings comprising the stdout of the command, split by whitespace. This allows substitution to be used as a loop-over in for loops, as well as being used to expand to arguments for commands, e.g. `pacman -Rs $(pacman -Qqtd)`.
+
+If the substitution occurs in double quotes, the output is not split and is replaced in the quote as is.
 
 If the substitution contains invalid syntax, the parser returns an error and the substitution is aborted.
 ```

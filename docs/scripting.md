@@ -128,7 +128,7 @@ The syntax of the for loop is as follows:
 
 The done keyword is very important as it denotes the end of the loop. Without it, the shell will loop over every subsequent command until the done keyword is specified.
 
-The loop-over construct is simply a list of arguments to the for keyword, which can be expanded in different ways.
+The loop-over construct is simply the arguments to the for keyword following `in`, which can be expanded in different ways.
 
 The simplest loop-over is a simple list:
 
@@ -136,7 +136,7 @@ The simplest loop-over is a simple list:
 
 The only square bracket notation here is the range notation:
 
-Brace and glob expansions are also valid in for loops. They expand to a list of strings accordingly.
+Brace and glob expansions as well as command substitution are also valid in for loops. They expand to a list of strings accordingly.
 
 The variable in the loop declaration is a valid shell variable, and can be expanded:
 ```
