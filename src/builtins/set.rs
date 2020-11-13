@@ -14,14 +14,14 @@ pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
         if cmd.args[1] == "str" {
             shell.add_variable(&cmd.args[2], Var::Str(cmd.args[4].clone()));
         } else if cmd.args[1] == "int" {
-            if let Ok(int) = cmd.args[4].parse::<i32>() {
+            if let Ok(int) = cmd.args[4].parse::<i64>() {
                 shell.add_variable(&cmd.args[2], Var::Int(int));
             } else {
                 eprintln!("let: cannot parse '{}' as int", cmd.args[4]);
                 return 2;
             }
         } else if cmd.args[1] == "flt" {
-            if let Ok(flt) = cmd.args[4].parse::<f32>() {
+            if let Ok(flt) = cmd.args[4].parse::<f64>() {
                 shell.add_variable(&cmd.args[2], Var::Flt(flt));
             } else {
                 eprintln!("let: cannot {} as flt", cmd.args[4]);

@@ -181,6 +181,9 @@ impl Shell {
                 counter += 1;
             }
             let result = execute::execute_jobs(self, jobs_to_do, false);
+            if self.stack_size > 0{
+                self.stack_size -= 1;
+            }
             for i in 0..counter {
                 let varname = format!("{}{}", name, i);
                 self.remove_variable(&varname);
@@ -615,33 +618,33 @@ pub fn eval_sqbrkt(shell: &mut Shell, string: String)
             }
         }
     } else {
-        Err(ShellError::from("oyster: mismatched variable types"))
+        Err(ShellError::from("oyster: mismatched variable types (operator evaluation)"))
     }
 }
 
 //Note: I wanted to do generics here but the kind of trait bounds
 //required to use for the items I wanted to return are not supported by Rust.
-fn perform_ops_int(lhs: i32, op: Operator, rhs: i32)
--> Result<i32, ShellError> {
+fn perform_ops_int(lhs: i64, op: Operator, rhs: i64)
+-> Result<i64, ShellError> {
     use Operator::*;
     let unsupported_err: &'static str = 
     "oyster: assignment operators are currently unsupported";
     match op {
         Add => {
-            if lhs == i32::MAX {
+            if lhs == i64::MAX {
                 return Err(ShellError::from("error: variable overflow"))
             }
             Ok(lhs + rhs)
         }
         Sub => {
-            if lhs == i32::MIN {
+            if lhs == i64::MIN {
                 return Err(ShellError::from("error: variable underflow"))
             }
             Ok(lhs - rhs)
         }
         Mul => {
-            if lhs as i64 * rhs as i64 >= i32::MAX as i64 {
-                return Err(ShellError::from("error variable overflow"))
+            if lhs as i128 * rhs as i128 >= i64::MAX as i128 {
+                return Err(ShellError::from("error: variable overflow"))
             }
             Ok(lhs * rhs)
         }
@@ -654,19 +657,28 @@ fn perform_ops_int(lhs: i32, op: Operator, rhs: i32)
     }
 }
 
-fn perform_ops_flt(lhs: f32, op: Operator, rhs: f32)
--> Result<f32, ShellError> {
+fn perform_ops_flt(lhs: f64, op: Operator, rhs: f64)
+-> Result<f64, ShellError> {
     use Operator::*;
     let unsupported_err: &'static str = 
     "oyster: assignment operators are currently unsupported";
     match op {
         Add => {
+            if lhs == f64::MAX {
+                return Err(ShellError::from("error: variable overflow"))
+            }
             Ok(lhs + rhs)
         }
         Sub => {
+            if lhs == f64::MIN {
+                return Err(ShellError::from("error: variable underflow"))
+            }
             Ok(lhs - rhs)
         }
         Mul => {
+            if lhs as i128 * rhs as i128 >= f64::MAX as i128 {
+                return Err(ShellError::from("error: variable overflow"))
+            }
             Ok(lhs * rhs)
         }
         Div => {

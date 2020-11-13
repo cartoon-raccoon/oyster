@@ -134,7 +134,7 @@ impl Construct {
                 }
                 if details.args[3].0 == Quote::SqBrkt {
                     let (_quote, to_expand) = details.args.remove(3);
-                    details.args.extend(expand_sqbrkt_range(to_expand)?);
+                    details.args.extend(expand_sqbrkt_range(shell, to_expand)?);
                 } else if details.args[3].0 == Quote::CmdSub
                     || details.args[3].0 == Quote::BQuote {
                     let (_quote, to_expand) = details.args.remove(3);
@@ -308,7 +308,7 @@ enum EqTest {
     Ge,
 }
 
-fn expand_sqbrkt_range(brkt: String) -> Result<Vec<(Quote, String)>, ShellError> {
+fn expand_sqbrkt_range(shell: &mut Shell, brkt: String) -> Result<Vec<(Quote, String)>, ShellError> {
     let mut range: Vec<String> = brkt.split("..").filter(
         |string| !string.is_empty()
     ).map(|string| string.to_string()).collect();
@@ -333,7 +333,14 @@ fn expand_sqbrkt_range(brkt: String) -> Result<Vec<(Quote, String)>, ShellError>
         range[1] = replace;
     }
     let mut numeric = Vec::new();
-    for number in range {
+    for mut number in range {
+        if number.starts_with("$") {
+            if let Some(num) = shell.get_variable(&number[1..]) {
+                number = format!("{}", num)
+            } else {
+                return Err(ShellError::from("oyster: no variable in shell"))
+            }
+        }
         match number.parse::<i32>() {
             Ok(int) => {
                 numeric.push(int);

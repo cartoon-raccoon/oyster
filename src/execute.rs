@@ -67,16 +67,19 @@ pub fn execute_jobs(
     for job in jobs {
         match job {
             ExecType::Job(job) => {
+                if job.cmds[0].cmd.0 == Quote::NQuote
+                && job.cmds[0].cmd.1 == "return" {
+                    return Ok((0, String::new()))
+                }
                 execif = job.execnext;
                 if let Some(execcond) = execif {
-                    if job.cmds[0].cmd.1.ends_with("()") {
-                        let result =  execute_func(shell, job)?;
-                        shell.stack_size = 0;
-                        return Ok(result)
-                    }
                     match execcond {
                         Exec::And => { //continue if last job succeeded
-                            result = execute(shell, job, false, capture)?;
+                            if job.cmds[0].cmd.1.ends_with("()") {
+                                result = execute_func(shell, job)?.into();
+                            } else {
+                                result = execute(shell, job, false, capture)?;
+                            }
                             captured.push_str(&result.stdout);
                             if result.status == 0 {
                                 continue;
@@ -85,7 +88,11 @@ pub fn execute_jobs(
                             }
                         }
                         Exec::Or => { //continue if last job failed
-                            result = execute(shell, job, false, capture)?; 
+                            if job.cmds[0].cmd.1.ends_with("()") {
+                                result = execute_func(shell, job)?.into();
+                            } else {
+                                result = execute(shell, job, false, capture)?;
+                            } 
                             captured.push_str(&result.stdout);
                             if result.status != 0 {
                                 continue;
@@ -94,23 +101,30 @@ pub fn execute_jobs(
                             }
                         }
                         Exec::Consec => { //unconditional execution
-                            result = execute(shell, job, false, capture)?;
+                            if job.cmds[0].cmd.1.ends_with("()") {
+                                result = execute_func(shell, job)?.into();
+                            } else {
+                                result = execute(shell, job, false, capture)?;
+                            }
                             captured.push_str(&result.stdout);
                             continue;
                         }
                         Exec::Background => { //run jobs asynchronously
-                            result = execute(shell, job, true, capture)?;
+                            if job.cmds[0].cmd.1.ends_with("()") {
+                                result = execute_func(shell, job)?.into();
+                            } else {
+                                result = execute(shell, job, false, capture)?;
+                            }
                             captured.push_str(&result.stdout);
                             continue;
                         }
                     }
                 } else { //if is None; this should only occur on the last job
                     if job.cmds[0].cmd.1.ends_with("()") {
-                        let result =  execute_func(shell, job)?;
-                        shell.stack_size = 0;
-                        return Ok(result)
+                        result = execute_func(shell, job)?.into();
+                    } else {
+                        result = execute(shell, job, false, capture)?;
                     }
-                    result = execute(shell, job, false, capture)?;
                     captured.push_str(&result.stdout);
                 }
             }

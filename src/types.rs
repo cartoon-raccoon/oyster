@@ -592,8 +592,8 @@ impl Function {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Variable {
     Str(String),
-    Int(i32),
-    Flt(f32),
+    Int(i64),
+    Flt(f64),
 }
 
 impl Variable {
@@ -641,9 +641,9 @@ impl Variable {
 impl<V: AsRef<str>> From<V> for Variable {
     fn from(input: V) -> Self {
         let input = input.as_ref();
-        if let Ok(int) = input.parse::<i32>() {
+        if let Ok(int) = input.parse::<i64>() {
             return Variable::Int(int)
-        } else if let Ok(flt) = input.parse::<f32>() {
+        } else if let Ok(flt) = input.parse::<f64>() {
             return Variable::Flt(flt)
         } else {
             Variable::Str(input.to_string())
@@ -774,6 +774,16 @@ impl CommandResult {
         CommandResult {
             status: status,
             stdout: String::new(),
+            stderr: String::new(),
+        }
+    }
+}
+
+impl From<(i32, String)> for CommandResult {
+    fn from(from: (i32, String)) -> Self {
+        CommandResult {
+            status: from.0,
+            stdout: from.1,
             stderr: String::new(),
         }
     }
