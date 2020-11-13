@@ -89,6 +89,22 @@ hello again
 
 As such, recursive functions can be defined in Oyster. To prevent stack overflows in the shell itself, Oyster implements an internal stack that grows every time a function is called, and shrinks when a function ends. Oyster also has a maximum nesting depth that is checked every time a function is called. If this depth is exceeded by the stack, Oyster will automatically return an error.
 
+The following function can calculate the factorial of a number up to 20 (at which point the variable overflows):
+```
+func fact 1
+    if [$fact0 <= 1]
+        echo 1
+    else
+        let int temp = 1
+        for i in [$fact0..=1]
+            let int temp = [$temp * $i]
+        done
+        echo $temp
+    end
+endfn
+```
+Recursive functions can be defined and called in Oyster, but they are still very wonky and won't be helpful the vast majority of the time. It is best to stick to an iterative approach to scripting. This applies to most shell scripting languages.
+
 ### Variables
 The shell can also accept user-defined variables. Variables can take one of three main types: Str (string), Int (integer) and Flt (float).
 
@@ -99,7 +115,7 @@ let <type> <name> = <value>
 ```
 The second way is the only way to assign quoted text. Variable types are mostly inferred: the first way will automatically infer types, and `let` will infer types if `<type>` is not specified.
 
-Ints are stored internally as signed 32-bit numbers, and floats are stored as signed 32-bit floats. Oyster can detect overflow or underflow when performing operations, and will return an error if this happens. If attempting to assign a value greater than the maximum value of the variable type, `let` will return an error if the type is specified, if not it will follow type inference procedure and assign the variable as the type that first passes the parse.
+Ints are stored internally as signed 64-bit numbers, and floats are stored as signed 64-bit floats. Oyster can detect overflow or underflow when performing operations, and will return an error if this happens. If attempting to assign a value greater than the maximum value of the variable type, `let` will return an error if the type is specified, if not it will follow type inference procedure and assign the variable as the type that first passes the parse.
 
 Variables can only accept alphanumeric names. Implicit declaration will fail the check if non-alphanumeric characters are in the variable name, and the word will be executed as a command:
 ```
