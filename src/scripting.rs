@@ -94,7 +94,7 @@ pub enum Construct {
 
 impl Construct {
     /// Recursively builds the AST from a raw Vec of jobs.
-    pub fn build(mut raw: Vec<Job>) -> Result<Self, ShellError> {
+    pub fn build(shell: &mut Shell, mut raw: Vec<Job>) -> Result<Self, ShellError> {
         if raw.len() < 1 {
             return Err(ShellError::from("error: empty script"))
         }
@@ -135,12 +135,22 @@ impl Construct {
                 if details.args[3].0 == Quote::SqBrkt {
                     let (_quote, to_expand) = details.args.remove(3);
                     details.args.extend(expand_sqbrkt_range(to_expand)?);
+                } else if details.args[3].0 == Quote::CmdSub
+                    || details.args[3].0 == Quote::BQuote {
+                    let (_quote, to_expand) = details.args.remove(3);
+                    let strings: Vec<(Quote, String)> = 
+                    substitute_commands(shell, &to_expand)?
+                    .split_whitespace().map(|s| 
+                        (Quote::NQuote, s.to_string())
+                    ).collect();
+                    details.args.extend(strings);
+
                 }
                 //TODO: match on Quote type
                 let coden = split_on_same_scope(raw);
                 let mut final_code = Vec::new();
                 for construct in coden {
-                    final_code.push(Box::new(Construct::build(construct)?));
+                    final_code.push(Box::new(Construct::build(shell, construct)?));
                 }
                 Ok(Construct::For {
                     loop_var: details.args[1].1.to_string(),
@@ -176,7 +186,7 @@ impl Construct {
                 let coden = split_on_same_scope(raw);
                 let mut final_code = Vec::new();
                 for construct in coden {
-                    final_code.push(Box::new(Construct::build(construct)?));
+                    final_code.push(Box::new(Construct::build(shell, construct)?));
                 }
                 Ok(Construct::While{
                     condition: details,
@@ -192,7 +202,7 @@ impl Construct {
                         conditions.push(condition);
                     }
                     for job in split_on_same_scope(jobs) {
-                        code.push(Box::new(Construct::build(job)?));
+                        code.push(Box::new(Construct::build(shell, job)?));
                     }
                     final_code.push(code);
                 }

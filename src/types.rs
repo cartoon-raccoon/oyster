@@ -520,7 +520,10 @@ impl Cmd {
                 Quote::CmdSub => {
                     match substitute_commands(shell, &string) {
                         Ok(string) => {
-                            newargs.push(string);
+                            let strings: Vec<String> = string.
+                            split_whitespace().map(|s| s.to_string())
+                            .collect();
+                            newargs.extend(strings);
                             continue;
                         }
                         Err(e) => {
@@ -532,7 +535,10 @@ impl Cmd {
                     expand_variables(shell, &mut string);
                     match substitute_commands(shell, &string) {
                         Ok(string) => {
-                            newargs.push(string);
+                            let strings: Vec<String> = string.
+                            split_whitespace().map(|s| s.to_string())
+                            .collect();
+                            newargs.extend(strings);
                             continue;
                         }
                         Err(e) => {

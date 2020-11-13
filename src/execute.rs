@@ -116,7 +116,7 @@ pub fn execute_jobs(
             }
             ExecType::Script(script) => {
                 //println!("got script: {:?}", script);
-                let script = Construct::build(script)?;
+                let script = Construct::build(shell, script)?;
                 result.status = script.execute(shell)?;
             }
         }
