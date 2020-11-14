@@ -15,8 +15,8 @@ use crate::types::{
 };
 use crate::shell::{
     Shell,
-    substitute_commands,
 };
+use crate::expansion::substitute_commands;
 use crate::execute::{
     execute_jobs,
     execute as exec,

@@ -9,8 +9,9 @@ use crate::types::{
     TokenizeResult,
     Quote,
 };
-use crate::shell::{
-    Shell,
+use crate::shell::Shell;
+
+use crate::expansion::{
     expand_variables,
     expand_braces,
     expand_glob,

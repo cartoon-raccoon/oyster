@@ -16,6 +16,11 @@ use crate::core;
 use crate::shell::{
     self, Shell
 };
+use crate::expansion::{
+    expand_variables,
+    expand_tilde,
+    substitute_commands,
+};
 use crate::builtins::*;
 use crate::scripting::*;
 
@@ -284,15 +289,15 @@ fn execute_func(shell: &mut Shell, mut job: Job) -> Result<(i32, String), ShellE
             |(quote, string)| {
                 match quote {
                     Quote::NQuote => {
-                        shell::expand_variables(shell, string);
-                        shell::expand_tilde(shell, string);
+                        expand_variables(shell, string);
+                        expand_tilde(shell, string);
                     }
                     Quote::DQuote => {
-                        shell::expand_variables(shell, string);
+                        expand_variables(shell, string);
                     }
                     Quote::BQuote => {
-                        shell::expand_variables(shell, string);
-                        return shell::substitute_commands(
+                        expand_variables(shell, string);
+                        return substitute_commands(
                             shell, &string
                         ).unwrap_or_else(|_e| {
                             eprintln!("oyster: error in command substitution");
@@ -300,7 +305,7 @@ fn execute_func(shell: &mut Shell, mut job: Job) -> Result<(i32, String), ShellE
                         })
                     }
                     Quote::CmdSub => {
-                        return shell::substitute_commands(
+                        return substitute_commands(
                             shell, &string
                         ).unwrap_or_else(|_e| {
                             eprintln!("oyster: error in command substitution");

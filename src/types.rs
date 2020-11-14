@@ -10,9 +10,11 @@ use nix::sys::signal::Signal;
 
 use crate::shell::{
     Shell,
+    eval_sqbrkt,
+};
+use crate::expansion::{
     expand_variables,
     expand_tilde,
-    eval_sqbrkt,
     substitute_commands,
 };
 use crate::prompt::{

@@ -7,6 +7,7 @@ mod jobc;
 mod prompt;
 mod builtins;
 mod scripting;
+mod expansion;
 
 #[macro_use]
 extern crate lazy_static;
