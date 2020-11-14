@@ -65,7 +65,8 @@ impl Shell {
             is_login: false,
         }
     }
-    pub fn change_dir(&mut self, cd_to: String) -> Result<(), ShellError> {
+    pub fn change_dir<P: Into<PathBuf>>(&mut self, cd_to: P) -> Result<(), ShellError> {
+        let cd_to = cd_to.into();
         self.prev_dir = self.current_dir.clone();
         self.current_dir = PathBuf::from(&cd_to);
         match env::set_current_dir(&cd_to) {
@@ -74,6 +75,9 @@ impl Shell {
                 return Ok(());
             }
             Err(e) => {
+                if e.to_string().contains("No such file or directory") {
+                    return Err(ShellError::from("no such file or directory"))
+                }
                 return Err(ShellError::from(e.to_string()));
             }
         }

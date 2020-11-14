@@ -24,21 +24,10 @@ pub fn run(shell: &mut Shell, mut cmd: Cmd, implicit: bool) -> i32 {
         eprintln!("oyster: env error, cannot set home dir");
         return 2;
     }
-    let pwd = env::var("PWD").unwrap_or(String::new());
-    if pwd.is_empty() {
-        eprintln!("oyster: env error, cannot get pwd");
-        return 2;
-    }
-    shell.set_prev_dir(pwd);
-    match env::set_current_dir(&cd_to) {
-        Ok(()) => {
-            env::set_var("PWD", &cd_to);
-            shell.set_current_dir(cd_to);
-            return 0;
-        }
-        Err(e) => {
-            eprintln!("cd: {}",e );
-            return 2;
-        }
+    if let Err(e) = shell.change_dir(cd_to) {
+        eprintln!("cd: {}", e);
+        return 1
+    } else {
+        return 0
     }
 }
