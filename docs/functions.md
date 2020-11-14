@@ -4,7 +4,7 @@ Oyster provides various ways to manipulate data within the shell itself. The she
 To look at the other programming constructs, see [Scripting Constructs](scripting.md).
 
 ### Functions
-Functions are simply blocks of commands assigned to a common identifier, and are run together, in the sequence specified. While similar to aliases. functions differ in that like real programming functions, they can be passed parameters. They are also more versatile than aliases, in that they can easily contain scripting constructs, and can be used to run multiple scripting constructs on demand with a single word.
+Functions are simply blocks of commands assigned to a common identifier, and are run together, in the sequence specified. While similar to aliases, functions differ in that like real programming functions, they can be passed parameters. They are also more versatile than aliases, in that they can easily contain scripting constructs, and can be used to run multiple scripting constructs on demand with a single word.
 
 Functions are defined with the `func` keyword, and are called with the name and `()` concatenated to the back.
 To denote the end of the function, you must use the `endfn` keyword.

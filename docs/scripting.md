@@ -34,7 +34,7 @@ This expands to a list of strings from the first integer, stepping over by the v
 
 The third integer must be positive; the shell will throw an error if it is not.
 
-e.g. `[1..5]` expands to `1 2 3 4`.
+e.g. `[1..5]` expands to `1 2 3 4` and `[5..1]` expands to `5 4 3 2`.
 
 To include the second integer, use `[<integer>..=<integer>]`.
 
@@ -45,6 +45,22 @@ e.g. `[1..=5]` expands to `1 2 3 4 5`.
 `=` does not respect step over, and will end the range on the second integer.
 
 e.g. `[1..=10..2]` expands to `1 3 5 7 9 10`.
+
+Ranges can also expand variables, as long as the variables are Ints.
+```
+$ let int lhs = 10
+$ let int rhs = 15
+$ for i in [$lhs..=$rhs]
+for > echo $i
+for > done
+
+10
+11
+12
+13
+14
+15
+```
 
 **Equality Evaluations**
 
@@ -122,23 +138,27 @@ howdy
 This is useful if you need to test an information file in `/sys` for a kernel status, or something similar.
 
 ### For Loops
+For loops are another very common programming construct found in (imperative-style) programming languages. The for loop in Oyster is extremely powerful because it iterates over the arguments it is passed. That means, anything that can expand to a list of arguments (which includes braces, globs, command substitution) is iterable.
+
 The syntax of the for loop is as follows:
 
-`for <variable> in <loop-over>; <execute commands here>; done`
+`for <variable> in <iterable>; <execute commands here>; done`
 
 The done keyword is very important as it denotes the end of the loop. Without it, the shell will loop over every subsequent command until the done keyword is specified.
 
-The loop-over construct is simply the arguments to the for keyword following `in`, which can be expanded in different ways.
+The iterable construct is simply the arguments to the for keyword following `in`, which can be expanded in different ways.
 
-The simplest loop-over is a simple list:
+The simplest iterable is a simple list of arguments passed manually:
 
 `for i in 1 2 3 4 5;`
 
-The only square bracket notation here is the range notation:
+but more complex iterables such as braces and globs can be used here.
 
-Brace and glob expansions as well as command substitution are also valid in for loops. They expand to a list of strings accordingly.
+The only valid square bracket notation here is the range notation; see above.
 
-The variable in the loop declaration is a valid shell variable, and can be expanded:
+Command substitution are also valid in for loops. They expand to a list of strings, split by whitespace (which includes newlines).
+
+The variable in the loop declaration is a valid shell variable of inferred type, and can be expanded:
 ```
 $ for name in 1{0,1,2,3,4}
 for > echo $name

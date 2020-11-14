@@ -96,6 +96,29 @@ else: shell reserved word
 
 Which returns an exit code equivalent to the number of arguments that did not match.
 
+### Pushd and Popd
+Oyster also maintains a directory stack which is simply a list of recently visited directories. It could prove useful to have if you are constantly switching between directories.
+
+`pushd` and `popd` are the two commands that can manipulate the directory stack. `pushd` pushes directories to the stack, while `popd` removes directories from the stack. The elements on the stack are numbered from 0, from left to right.
+
+Invoking either command also triggers a `cd` to the directory that was manipulated on the stack. Passing the `-n` switch after the command will prevent the directory change.
+
+`pushd` can accept either an integer or pathname. If a pathname is given, it will push the path to the top of the stack. If no arguments are passed, it swaps the top two elements on the stack and changes to the top directory, depending on whether the `-n` flag is set.
+
+The integer `N` passed can be positive or negative. If positive, the `N`th path from the left is brought to the top, otherwise the `N`th from the right is moved.
+
+`popd` only accepts an integer. Following the same rules for integer `N`, it removes the `N`th integer from the stack and changes to it, depending on whether the `-n` flag is passed.
+
+### Dirs
+The `dirs` command complements the dirstack manipulation commands, by allowing the user to view the stack. It accepts the `-clpv` flags and an integer `N` in the same fashion as `pushd` and `popd`.
+
+- `-c` clears the directory stack.
+- `-l` shows the full path of each item; `dirs` uses tilde notation by default.
+- `-p` causes dirs to print each entry on a newline.
+- `-v` causes dirs to print each entry on a newline, prefixing each path with its index in the stack.
+
+`+N` shows the `N`th integer from the left, and `-N` the `N`th integer from the right.
+
 ### To Be Implemented
 The following commands have not been implemented, but will be.
 - `read` reads a single line of input from the console and saves it to a variable.
