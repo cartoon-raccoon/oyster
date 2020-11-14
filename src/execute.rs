@@ -324,6 +324,9 @@ fn execute_func(shell: &mut Shell, mut job: Job) -> Result<(i32, String), ShellE
                             String::new()
                         })
                     }
+                    Quote::NmSpce => {
+                        //TODO
+                    }
                     Quote::SQuote => {}
                     Quote::SqBrkt => {
                         return shell::eval_sqbrkt(shell, string.clone())

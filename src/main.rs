@@ -136,7 +136,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                     break;
                                 }
                                 n@ _ => {
-                                    print!("{} ", n); io::stdout().flush().unwrap();
+                                    print!("{}", n); io::stdout().flush().unwrap();
                                     match io::stdin().read_line(&mut buffer) {
                                         Ok(_) => {},
                                         Err(_) => {
@@ -147,7 +147,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             }
                         }
                         n@ _ => {
-                            print!("{} ", n); io::stdout().flush().unwrap();
+                            print!("{}", n); io::stdout().flush().unwrap();
                             match io::stdin().read_line(&mut buffer) {
                                 Ok(_) => {},
                                 Err(_) => {

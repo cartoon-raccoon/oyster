@@ -42,28 +42,28 @@ impl fmt::Display for TokenizeResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TokenizeResult::UnmatchedDQuote => {
-                write!(f, "{}dquote >{}", BOLD, RESET)
+                write!(f, "{}dquote > {}", BOLD, RESET)
             }
             TokenizeResult::UnmatchedSQuote => {
-                write!(f, "{}quote >{}", BOLD, RESET )
+                write!(f, "{}quote > {}", BOLD, RESET )
             }
             TokenizeResult::UnmatchedBQuote => {
-                write!(f, "{}bquote >{}", BOLD, RESET )
+                write!(f, "{}bquote > {}", BOLD, RESET )
             }
             TokenizeResult::UnmatchedCmdSub => {
-                write!(f, "{}cmdsub >{}", BOLD, RESET)
+                write!(f, "{}cmdsub > {}", BOLD, RESET)
             }
             TokenizeResult::UnmatchedSqBrkt => {
-                write!(f, "{}sqbrkt >{}", BOLD, RESET)
+                write!(f, "{}sqbrkt > {}", BOLD, RESET)
             }
             TokenizeResult::EndsOnAnd => {
-                write!(f, "{}cmdand >{}", BOLD, RESET )
+                write!(f, "{}cmdand > {}", BOLD, RESET )
             }
             TokenizeResult::EndsOnOr => {
-                write!(f, "{}cmdor >{}", BOLD, RESET )
+                write!(f, "{}cmdor > {}", BOLD, RESET )
             }
             TokenizeResult::EndsOnPipe => {
-                write!(f, "{}pipe >{}", BOLD, RESET )
+                write!(f, "{}pipe > {}", BOLD, RESET )
             }
             TokenizeResult::EmptyCommand => {
                 write!(f, "")
@@ -91,16 +91,16 @@ impl fmt::Display for ParseResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ParseResult::For => {
-                write!(f, "{}for >{}", BOLD, RESET )
+                write!(f, "{}for > {}", BOLD, RESET )
             }
             ParseResult::While => {
-                write!(f, "{}while >{}", BOLD, RESET)
+                write!(f, "{}while > {}", BOLD, RESET)
             }
             ParseResult::If => {
-                write!(f, "{}if >{}", BOLD, RESET )
+                write!(f, "{}if > {}", BOLD, RESET )
             }
             ParseResult::Func => {
-                write!(f, "{}func >{}", BOLD, RESET )
+                write!(f, "{}func > {}", BOLD, RESET )
             }
             ParseResult::Good(_jobs) => {
                 Ok(())
@@ -306,6 +306,7 @@ pub enum Token {
     CmdSub(String),
     Brace(String),
     SqBrkt(String),
+    NmSpce(String),
     Pipe, //handled!
     Pipe2, //handled!;
     And, //handled!
@@ -341,6 +342,9 @@ impl fmt::Display for Token {
             }
             Brace(string) => {
                 write!(f, "{}", string)
+            }
+            NmSpce(string) => {
+                write!(f, "${{{}}}", string)
             }
             SqBrkt(string) => {
                 write!(f, "{}", string)
@@ -413,6 +417,7 @@ pub enum Quote {
     BQuote,
     CmdSub,
     SqBrkt,
+    NmSpce,
 }
 
 impl Default for Quote {
@@ -451,6 +456,9 @@ impl fmt::Display for TokenCmd {
                 }
                 Quote::SqBrkt => {
                     return format!("[{}]", string);
+                }
+                Quote::NmSpce => {
+                    return format!("${{{}}}", string);
                 }
             }
         }).collect();
@@ -504,6 +512,9 @@ impl Cmd {
                     }
                 }
             }
+            Quote::NmSpce => {
+                //TODO
+            }
             Quote::SQuote => {}
             Quote::SqBrkt => {
                 cmd.cmd = (Quote::NQuote, eval_sqbrkt(shell, cmd.cmd.1)?.to_string())
@@ -547,6 +558,9 @@ impl Cmd {
                             return Err(e.into());
                         }
                     }
+                }
+                Quote::NmSpce => {
+                    //TODO
                 }
                 Quote::SQuote => {}
                 Quote::SqBrkt => {
