@@ -1,4 +1,6 @@
 use std::path::PathBuf;
+use std::error::Error;
+use std::env;
 
 use crate::shell::Shell;
 use crate::types::{
@@ -30,7 +32,7 @@ impl Shell {
                     idx
                 }
                 From::Right => {
-                    self.dirstack.len() - idx
+                    self.dirstack.len() - 1 - idx
                 }
             };
             let to_push = self.dirstack.remove(idx);
@@ -51,7 +53,7 @@ impl Shell {
                     idx
                 }
                 From::Right => {
-                    self.dirstack.len() - idx
+                    self.dirstack.len() - 1 - idx
                 }
             };
             Some(self.dirstack.remove(idx))
@@ -61,11 +63,141 @@ impl Shell {
     }
 }
 
-pub fn dirs(shell: &mut Shell, _cmd: Cmd) -> i32 {
-    for path in shell.dirstack.iter().rev() {
-        println!("{}", path.to_str().unwrap())
+pub fn dirs(shell: &mut Shell, cmd: Cmd) -> i32 {
+    struct Options {
+        clear: bool,
+        fullpath: bool,
+        per_line: bool,
+        show_idx: bool,
+    }
+    if cmd.args.len() > 3 {
+        eprintln!("dirs: too many arguments")
+    }
+    let mut options = Options {
+        clear: false,
+        fullpath: false,
+        per_line: false,
+        show_idx: false,
+    };
+    if cmd.args.len() > 1 {
+        if cmd.args[1].starts_with("-") {
+            if cmd.args[1].contains("c") {
+                options.clear = true;
+            }
+            if cmd.args[1].contains("l") {
+                options.fullpath = true;
+            }
+            if cmd.args[1].contains("p") {
+                options.per_line = true;
+            }
+            if cmd.args[1].contains("v") {
+                options.per_line = true;
+                options.show_idx = true;
+            }
+        } else {
+            eprintln!("dirs: invalid argument");
+            return 1
+        }
+    }
+    if options.clear {
+        shell.dirstack.clear();
+    }
+    if cmd.args.len() == 3 {
+        let idx = if cmd.args[2].starts_with("+") {
+            match cmd.args[2][1..].parse::<usize>() {
+                Ok(int) => {
+                    if int + 1 > shell.dirstack.len() {
+                        eprintln!("dirs: stack not large enough");
+                        return 2
+                    } else {
+                        int
+                    }
+                }
+                Err(_) => {
+                    eprintln!("dirs: invalid argument {}", cmd.args[2]);
+                    return 2
+                }
+            }
+        } else if cmd.args[2].starts_with("-") {
+            match cmd.args[2][1..].parse::<usize>() {
+                Ok(int) => {
+                    if int + 1 > shell.dirstack.len() {
+                        eprintln!("dirs: stack not large enough");
+                        return 2
+                    } else {
+                        shell.dirstack.len() - 1 - int
+                    }
+                }
+                Err(_) => {
+                    eprintln!("dirs: invalid argument {}", cmd.args[2]);
+                    return 2
+                }
+            }
+        } else {
+            eprintln!("dirs: invalid argument {}", cmd.args[2]);
+            return 2
+        };
+        let path = match render_path(&shell.dirstack[idx], options.fullpath) {
+            Ok(s) => s,
+            Err(_) => {
+                eprintln!("dirs: error generating path");
+                return 3;
+            }
+        };
+        println!("{}", path);
+    } else if cmd.args.len() == 2 {
+        let mut display = String::new();
+        for (i, path) in shell.dirstack.iter().enumerate() {
+            let to_show = if options.show_idx {
+                format!("[{}] {}", i, match render_path(path, options.fullpath) {
+                    Ok(s) => s,
+                    Err(_) => {
+                        eprintln!("dirs: error generating path");
+                        return 3
+                    }
+                })
+            } else {
+                match render_path(path, options.fullpath) {
+                    Ok(s) => s,
+                    Err(_) => {
+                        eprintln!("dirs: error generating path");
+                        return 3
+                    }
+                }
+            };
+            if options.per_line {
+                println!("{}", to_show);
+            } else {
+                display.push_str(&to_show);
+                display.push(' ');
+            }
+        }
+        if !options.per_line {
+            println!("{}", display);
+        }
+    } else {
+        println!("{}", shell.dirstack.iter()
+            .map(|path| render_path(path, options.fullpath)
+                .unwrap_or(String::from(""))
+            )
+            .collect::<Vec<String>>().join(" ")
+        )
     }
     0
+}
+
+pub fn render_path(path: &PathBuf, full: bool) -> Result<String, Box<dyn Error>> {
+    let homedir = PathBuf::from(env::var("HOME")?);
+    //TODO - FIXME: There is an unwrap here
+    let to_display: String;
+    if path.starts_with(&homedir) && !full {
+        to_display = path.to_str()
+            .unwrap()
+            .replace(homedir.to_str().unwrap(), "~");
+    } else {
+        to_display = path.to_str().unwrap().to_string();
+    }
+    return Ok(to_display)
 }
 
 pub fn pushd(shell: &mut Shell, cmd: Cmd) -> i32 {
@@ -89,6 +221,16 @@ pub fn pushd(shell: &mut Shell, cmd: Cmd) -> i32 {
             return result
         }
     } else if cmd.args.len() == 2 {
+        if cmd.args[1] == "-n" {
+            if shell.dirstack.len() < 2 {
+                eprintln!("pushd: not enough elements in stack");
+                return 2
+            }
+            let rem_idx = shell.dirstack.len() - 2;
+            let path = shell.dirstack.remove(rem_idx);
+            shell.dirstack.push(path);
+            return 0
+        }
         if cmd.args[1].starts_with("+") {
             let result = push_dirstack(shell, &cmd.args[1][1..], From::Left, true);
             return result
@@ -100,7 +242,21 @@ pub fn pushd(shell: &mut Shell, cmd: Cmd) -> i32 {
             return result
         }
     } else {
-        unimplemented!()
+        if shell.dirstack.len() < 2 {
+            eprintln!("pushd: not enough elements in stack");
+            return 2
+        }
+        let rem_idx = shell.dirstack.len() - 2;
+        let path = shell.dirstack.remove(rem_idx);
+        match shell.change_dir(&path) {
+            Ok(_) => {},
+            Err(_) => {
+                eprintln!("dirs: cd error");
+                return 3
+            }
+        }
+        shell.dirstack.push(path);
+        0
     }
 }
 
