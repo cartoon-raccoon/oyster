@@ -164,7 +164,7 @@ pub fn execute(
         )
     }
 
-    if cmds.len() == 1 { //no pipeline
+    if cmds.len() == 1 && !capture { //no pipeline
         let mut cmd = cmds[0].clone();
         if shell::assign_variables(shell, &mut cmd.cmd) {
             return Ok(CommandResult::new());

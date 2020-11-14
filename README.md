@@ -6,7 +6,7 @@ This was borne out of a desire to understand process execution in Linux, and slo
 
 Trying to keep dependency count low, the only convenience crates used (as of now) are Regex and glob.
 
-SLOC Count: `4668`
+SLOC Count: `5263`
 
 ## Features
 - Pipelining and conditional execution
@@ -19,6 +19,8 @@ SLOC Count: `4668`
 - Basic scripting with for loops and if/elif/else statements
     - Variables are typed and can be operated on
 - Script file interpretation (including rcfile reading)
+- Basic builtins like `which`, `cd` and `alias`
+- Directory stack
 - Customizable prompt with last exit indication, username and PWD
 
 ## Planned
@@ -28,7 +30,7 @@ SLOC Count: `4668`
 - Bangbang (`!!`) expansion to last command
 - Fleshing out scripting system with more constructs
     - I'm learning about programming languages now, and I might choose to develop this into an entire custom scripting language sometime down the line.
-- Additional if statement evaulation options, case statement
+- Additional if statement evaluation options, case statement
 - Additional prompt customizability (git status, active environments, etc)
 - Additional builtins (history, env activation, etc)
 
