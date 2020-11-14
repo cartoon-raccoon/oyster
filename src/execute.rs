@@ -210,6 +210,18 @@ pub fn execute(
                 let status = show::run(shell, cmd);
                 return Ok(CommandResult::from_status(status));
             }
+            "pushd" => {
+                let status = dirstack::pushd(shell, cmd);
+                return Ok(CommandResult::from_status(status));
+            }
+            "popd" => {
+                let status = dirstack::popd(shell, cmd);
+                return Ok(CommandResult::from_status(status));
+            }
+            "dirs" => {
+                let status = dirstack::dirs(shell, cmd);
+                return Ok(CommandResult::from_status(status));
+            }
             "eval" => {
             }
             "source" => {

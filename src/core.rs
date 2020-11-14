@@ -270,6 +270,22 @@ fn run_command(
                     let status = which::run(cmd);
                     process::exit(status);
                 }
+                "show" => {
+                    let status = show::run(shell, cmd);
+                    process::exit(status);
+                }
+                "pushd" => {
+                    let status = dirstack::pushd(shell, cmd);
+                    process::exit(status);
+                }
+                "popd" => {
+                    let status = dirstack::popd(shell, cmd);
+                    process::exit(status);
+                }
+                "dirs" => {
+                    let status = dirstack::dirs(shell, cmd);
+                    process::exit(status);
+                }
                 "eval" => {
                 }
                 "source" => {
