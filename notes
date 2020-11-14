@@ -36,13 +36,9 @@ Todo:
 Implement history and completion
 Implement process substitution
 Implement git repo detection for prompt
-Implement variable types using enums
-  - Ints
-  - Strings
-  - Arrays (add parenthesis detection to the parser)
+Implement arrays
 Add parenthesis detection to parser
 For scripting:
-    Implement if (and comparison operators)
     Implement case statement
     Implement logical operators (OR, AND)
 
