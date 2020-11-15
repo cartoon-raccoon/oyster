@@ -74,7 +74,7 @@ pub enum Construct {
     /// Represents a `for` loop
     For {
         loop_var: String,
-        loop_over: Vec<Variable>,
+        iterable: Vec<Variable>,
         code: Vec<Box<Construct>>,
     },
     While {
@@ -102,7 +102,7 @@ impl Construct {
         //only need to split after matching, because build() receives
         //a single construct that may contain many constructs on the same scope
         //but deeper inside
-        if raw[0].execnext != Some(Exec::Consec) {
+        if raw[0].execnext == Some(Exec::Background) {
             return Err(
                 ShellError::from("oyster: invalid delimiter")
             )
@@ -118,8 +118,10 @@ impl Construct {
                         )
                     }
                 }
+                //removing "done"
                 raw.remove(len - 1);
-                let mut details = raw.remove(0).cmds.remove(0);
+                //removing the "for" command
+                let details = raw.remove(0).cmds.remove(0);
                 if details.args.len() < 4 {
                     return
                     Err(
@@ -132,19 +134,34 @@ impl Construct {
                         ShellError::from("oyster: invalid for loop syntax")
                     )
                 }
-                if details.args[3].0 == Quote::SqBrkt {
-                    let (_quote, to_expand) = details.args.remove(3);
-                    details.args.extend(expand_sqbrkt_range(shell, to_expand)?);
-                } else if details.args[3].0 == Quote::CmdSub
-                    || details.args[3].0 == Quote::BQuote {
-                    let (_quote, to_expand) = details.args.remove(3);
-                    let strings: Vec<(Quote, String)> = 
-                    substitute_commands(shell, &to_expand)?
-                    .split_whitespace().map(|s| 
-                        (Quote::NQuote, s.to_string())
-                    ).collect();
-                    details.args.extend(strings);
-
+                let mut iterable = Vec::new();
+                for word in &details.args[3..] {
+                    if word.0 == Quote::SqBrkt {
+                        iterable.extend(expand_sqbrkt_range(shell, &word.1)?);
+                    } else if word.0 == Quote::CmdSub
+                        || word.0 == Quote::BQuote {
+                        let strings: Vec<(Quote, String)> = 
+                        substitute_commands(shell, &word.1)?
+                        .split_whitespace().map(|s| 
+                            (Quote::NQuote, s.to_string())
+                        ).collect();
+                        iterable.extend(strings);
+                    } else if word.1.starts_with("$") {
+                        if let Some(var) = shell.get_variable(&word.1[1..]) {
+                            if let Variable::Arr(arr) = var {
+                                iterable.extend(arr.into_iter()
+                                    .map(|var| (Quote::NQuote, var.to_string()))
+                                    .collect::<Vec<(Quote, String)>>()
+                                )
+                            } else {
+                                iterable.push((Quote::NQuote, var.to_string()))
+                            }
+                        } else {
+                            return Err(ShellError::from("oyster: variable not found"))
+                        }
+                    } else {
+                        iterable.push(word.clone())
+                    }
                 }
                 //TODO: match on Quote type
                 let coden = split_on_same_scope(raw);
@@ -154,7 +171,7 @@ impl Construct {
                 }
                 Ok(Construct::For {
                     loop_var: details.args[1].1.to_string(),
-                    loop_over: details.args[3..].to_vec()
+                    iterable: iterable
                         .into_iter()
                         .map(|tuple| Variable::from(tuple.1))
                         .collect(),
@@ -228,10 +245,10 @@ impl Construct {
     ) -> Result<i32, ShellError> {
 
         match self {
-            Construct::For {loop_var, loop_over, code} => {
+            Construct::For {loop_var, iterable, code} => {
                 let mut status: i32 = 0;
 
-                for item in loop_over {
+                for item in iterable {
                     shell.add_variable(&loop_var, Variable::from(item));
                     //* clone here slows things down a lot
                     let code2 = code.clone();
@@ -308,11 +325,12 @@ enum EqTest {
     Ge,
 }
 
-fn expand_sqbrkt_range(shell: &mut Shell, brkt: String) -> Result<Vec<(Quote, String)>, ShellError> {
+fn expand_sqbrkt_range(shell: &mut Shell, brkt: &str) -> Result<Vec<(Quote, String)>, ShellError> {
     let mut range: Vec<String> = brkt.split("..").filter(
         |string| !string.is_empty()
     ).map(|string| string.to_string()).collect();
     if range.len() < 2 || range.len() > 3 {
+        //println!("{}", brkt);
         return Err(
             ShellError::from("oyster: error expanding range")
         )
@@ -561,7 +579,8 @@ fn split_on_branches(raw: Vec<Job>)
     let mut buffer = Vec::new();
     let mut nesting_level: isize = -1;
     let mut condition = None;
-    for job in raw {
+    let mut raw = raw.into_iter();
+    while let Some(job) = raw.next() {
         match job.cmds[0].cmd.1.as_str() {
             "for" | "while" => {
                 buffer.push(job);
