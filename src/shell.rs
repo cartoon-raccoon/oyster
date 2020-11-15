@@ -362,7 +362,7 @@ pub fn eval_sqbrkt(shell: &mut Shell, string: String)
     "oyster: operators other than `+` are not supported for strings";
     let (lhs, op, rhs) = match tokenize_sqbrkt(shell, &string) {
         Ok(ops) => ops,
-        Err(_) => return Ok(Var::Str(string))
+        Err(_) => return Ok(Var::Str(format!("[{}]", string)))
     };
     if Var::types_match(&lhs, &rhs) {
         match lhs {

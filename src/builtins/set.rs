@@ -24,11 +24,13 @@ pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
             if let Ok(flt) = cmd.args[4].parse::<f64>() {
                 shell.add_variable(&cmd.args[2], Var::Flt(flt));
             } else {
-                eprintln!("let: cannot {} as flt", cmd.args[4]);
+                eprintln!("let: cannot parse '{}' as flt", cmd.args[4]);
                 return 2;
             }
         } else if cmd.args[1] == "arr" {
-            shell.add_variable(&cmd.args[2], Var::Arr(split_arr(&cmd.args[4])))
+            let mut input = cmd.args[4].clone();
+            input.pop();
+            shell.add_variable(&cmd.args[2], Var::Arr(split_arr(&input[1..])));
         } else {
             eprintln!("let: invalid type specification")
         }
@@ -42,7 +44,13 @@ pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
             eprintln!("let: invalid syntax");
             return 1;
         }
-        shell.add_variable(&cmd.args[1], Var::from(&cmd.args[3]))
+        if cmd.args[3].starts_with("[") && cmd.args[3].ends_with("]") {
+            let mut input = cmd.args[3].clone();
+            input.pop();
+            shell.add_variable(&cmd.args[1], Var::Arr(split_arr(&input[1..])));
+        } else {
+            shell.add_variable(&cmd.args[1], Var::from(&cmd.args[3]))
+        }
     } else {
         eprintln!("let: not enough arguments");
         return 1;
