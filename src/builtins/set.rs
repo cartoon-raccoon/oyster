@@ -27,6 +27,8 @@ pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
                 eprintln!("let: cannot {} as flt", cmd.args[4]);
                 return 2;
             }
+        } else if cmd.args[1] == "arr" {
+            shell.add_variable(&cmd.args[2], Var::Arr(split_arr(&cmd.args[4])))
         } else {
             eprintln!("let: invalid type specification")
         }
@@ -46,4 +48,10 @@ pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
         return 1;
     }
     0
-} 
+}
+
+fn split_arr(input: &str) -> Vec<Var> {
+    input.split(",").map(|string| {
+        Var::from(string.trim())
+    }).collect()
+}

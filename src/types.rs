@@ -524,7 +524,20 @@ impl Cmd {
         for (quote, mut string) in cmd.args {
             match quote {
                 Quote::NQuote => {
-                    expand_variables(shell, &mut string);
+                    if string.starts_with("$") {
+                        if let Some(var) = shell.get_variable(&string[1..]) {
+                            if let Variable::Arr(arr) = var {
+                                newargs.extend(arr.into_iter().map(|elem| {
+                                    elem.to_string()
+                                }).collect::<Vec<String>>());
+                                continue;
+                            } else {
+                                string = var.to_string();
+                            }
+                        } else {
+                            string = String::from("")
+                        }
+                    }
                     expand_tilde(shell, &mut string);
                 }
                 Quote::DQuote => {
@@ -605,11 +618,21 @@ impl Function {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Map {
+    inner: HashMap<String, Variable>,
+}
+
+impl Map {
+
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Variable {
     Str(String),
     Int(i64),
     Flt(f64),
+    Arr(Vec<Variable>),
 }
 
 impl Variable {
@@ -623,6 +646,12 @@ impl Variable {
             }
             Variable::Flt(flt) => {
                 println!("flt: {}", flt);
+            }
+            Variable::Arr(arr) => {
+                println!("arr: [{}]", arr.iter()
+                    .map(|elem| elem.to_string())
+                    .collect::<Vec<String>>().join(" ")
+                )
             }
         }
     }
@@ -645,6 +674,13 @@ impl Variable {
             }
             Variable::Str(_) => {
                 if let Variable::Str(_) = rhs {
+                    true
+                } else {
+                    false
+                }
+            }
+            Variable::Arr(_) => {
+                if let Variable::Arr(_) = rhs {
                     true
                 } else {
                     false
@@ -679,6 +715,12 @@ impl fmt::Display for Variable {
             }
             Flt(flt) => {
                 write!(f, "{}", flt)
+            }
+            Arr(arr) => {
+                write!(f, "{}", arr.iter()
+                    .map(|elem| elem.to_string())
+                    .collect::<Vec<String>>().join(" ")
+                )
             }
         }
     }

@@ -21,6 +21,7 @@ use crate::types::{
     Job,
     JobTrack,
     Variable as Var,
+    Map,
     Operator,
     Function,
     UnwrapOr,
@@ -36,6 +37,7 @@ pub struct Shell {
     aliases: HashMap<String, String>,
     pub env: HashMap<String, String>,
     vars: HashMap<String, Var>,
+    maps: HashMap<String, Map>,
     pub funcs: HashMap<String, Function>,
     max_nesting: usize,
     stack_size: usize,
@@ -55,6 +57,7 @@ impl Shell {
             aliases: HashMap::new(),
             env: HashMap::new(),
             vars: HashMap::new(),
+            maps: HashMap::new(),
             funcs: HashMap::new(),
             max_nesting: 50,
             stack_size: 0,
@@ -357,7 +360,10 @@ pub fn eval_sqbrkt(shell: &mut Shell, string: String)
 -> Result<Var, ShellError> {
     let string_error: &'static str = 
     "oyster: operators other than `+` are not supported for strings";
-    let (lhs, op, rhs) = tokenize_sqbrkt(shell, string)?;
+    let (lhs, op, rhs) = match tokenize_sqbrkt(shell, &string) {
+        Ok(ops) => ops,
+        Err(_) => return Ok(Var::Str(string))
+    };
     if Var::types_match(&lhs, &rhs) {
         match lhs {
             Var::Str(string) => {
@@ -384,6 +390,9 @@ pub fn eval_sqbrkt(shell: &mut Shell, string: String)
                 } else {
                     unreachable!()
                 }
+            }
+            Var::Arr(_) => {
+                Err(ShellError::from("oyster: cannot operate on arrays"))
             }
         }
     } else {
@@ -459,7 +468,7 @@ fn perform_ops_flt(lhs: f64, op: Operator, rhs: f64)
     }
 }
 
-fn tokenize_sqbrkt(shell: &mut Shell, string: String)
+fn tokenize_sqbrkt(shell: &mut Shell, string: &str)
 -> Result<(Var, Operator, Var), ShellError> {
     let mut in_quote = false;
     let mut parsed: Vec<(bool, String)> = Vec::new();
