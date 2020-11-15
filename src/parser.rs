@@ -44,7 +44,6 @@ impl Lexer {
         let mut in_nmespc = false;
         let mut brace_level: i32 = 0;
         let mut has_brace = false;
-        let mut has_bquote = false;
         let mut ignore_next = false;
         let mut prev_char = None;
 
@@ -189,7 +188,7 @@ impl Lexer {
                     }
                 }
                 '[' if !in_dquote && !in_squote && !in_bquote && !in_nmespc
-                    && !in_cmdsub && prev_char == Some(' ') => {
+                    && !in_cmdsub && prev_char == Some(' ') || prev_char == None => {
                     push(&mut tokenvec, &mut word, c, 
                         in_dquote, in_squote, has_brace
                     );
@@ -209,8 +208,6 @@ impl Lexer {
                     ignore_next = true;
                     if !in_dquote {
                         in_cmdsub = true;
-                    } else {
-                        has_bquote = true;
                     }
                 }
                 '$' if line_iter.peek() == Some(&'{')
@@ -231,8 +228,6 @@ impl Lexer {
                         tokenvec.push(Token::CmdSub(word.clone()));
                         word.clear();
                         in_cmdsub = false;
-                    } else {
-                        has_bquote = true;
                     }
                 }
                 '>' if line_iter.peek() == Some(&'>') 
@@ -337,8 +332,6 @@ impl Lexer {
                         if !in_dquote {
                             tokenvec.push(Token::BQuote(word.clone()));
                             word.clear();
-                        } else {
-                            has_bquote = true;
                         }
                     } else {
                         in_bquote = true;
@@ -370,10 +363,6 @@ impl Lexer {
                         in_dquote = false;
                         if brace_level > 0 {
 
-                        } else if has_bquote {
-                            tokenvec.push(Token::BQuote(word.clone()));
-                            word.clear();
-                            has_bquote = false;
                         } else {
                             tokenvec.push(Token::DQuote(word.clone()));
                             word.clear();
