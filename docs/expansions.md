@@ -75,13 +75,25 @@ it's not time yet
 ```
 Outside of scripting, square brackets are used to operate on variables.
 
-To operate on variables, enclose the operation inside a square bracket. This allows the shell to detect it and perform the operation.
+To operate on variables, enclose the operation inside a square bracket. This allows the shell to detect it and perform the operation, replacing the bracket's contents with the result of the operation.
 
 The syntax for square bracket operations is as follows:
 
 `[<operand> <operator> <operand>]`
 
-The operands and operator must be separated by spaces, if not the shell cannot properly parse the contents.
+The operands and operator must be separated by spaces, if not the shell cannot properly parse the contents. If the shell cannot parse the contents, the squqre bracket will not be expanded, and instead the contents of the bracket will be returned.
+```
+$ echo [hello]
+hello
+```
+Currently, there are 4 operations that can be performed on variables: Add, Subtract, Multiply and Divide. For strings, only Add can be performed, which concatenates the strings together. Any other operator will cause the shell to return an error.
+```
+$ echo ["hello" - "llo"]
+oyster: operators other than `+` are not supported for strings
+```
+Arrays cannot be operated on in any way, the shell will throw an error if attempting to do so.
+
+Operate-and-assign operators exist in the source code, but they only currently return a "not supported" error.
 
 The operand can be a literal, in which case the type is inferred, or can be a variable, designated with a `$`. If there is no `$`, the operand is treated as a literal.
 
@@ -102,12 +114,6 @@ onetwo
 ```
 If the operand is a variable, it is expanded before being operated on.
 Both operands are type checked before the operation is performed. If the types don't match, the shell returns an error.
-
-Currently, there are 4 operations that can be performed on variables: Add, Subtract, Multiply and Divide. For strings, only Add can be performed, which concatenates the strings together. Any other operator will cause the shell to return an error.
-```
-$ echo ["hello" - "llo"]
-oyster: operators other than `+` are not supported for strings
-```
 
 ### Tilde Expansions
 Oyster can also do tilde expansions.

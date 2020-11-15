@@ -106,7 +106,7 @@ endfn
 Recursive functions can be defined and called in Oyster, but they are still very wonky and won't be helpful the vast majority of the time. It is best to stick to an iterative approach to scripting. This applies to most shell scripting languages.
 
 ### Variables
-The shell can also accept user-defined variables. Variables can take one of three main types: Str (string), Int (integer) and Flt (float).
+The shell can also accept user-defined variables. Variables can take one of four types: Str (string), Int (integer), Flt (float) and Arr (array).
 
 There are two ways to define variables: implicitly, and with the `let` command.
 ```
@@ -135,6 +135,12 @@ let int number2 = 5 (parsed as int)
 let number3 = 3.14 (inferred as flt)
 let text = "hello" (inferred as str)
 ```
+Declaring arrays requires the use of a square bracket. Each element in the array is delimited with a comma.
+
+`let arr greet = [hello,my,name,is,dipper,pines]`
+
+Each element in the array is type inferred, you cannot specify the types it will take.
+
 If the type is specified but the value cannot be parsed as that type, `let` returns an error.
 
 Expanding variables is similar to other shells: use `$`;
@@ -143,6 +149,21 @@ $ let hello = "howdy pardner"
 $ echo $hello
 howdy pardner
 ```
-Expanding variables always expands to a string. To operate on variables as their types, you need to enclose the operation inside a square bracket. See [expansions](expansions.md) for more information.
+Expanding non-array variables always expands to a string. Arrays expand to a list of strings:
+
+```
+$ for word in $greet
+for > echo $word
+for > done
+
+hello
+my
+name
+is
+dipper
+pines
+```
+
+To operate on variables as their types, you need to enclose the operation inside a square bracket. See [expansions](expansions.md) for more information.
 
 As of now, `$` cannot be backslash-escaped. The only way to use a literal $ is to enclose it in single quotes (variable expansion is performed on double quotes). This is a bug and will be fixed.

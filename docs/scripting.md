@@ -128,7 +128,7 @@ this branch gets executed
 ```
 The only accepted square bracket notation here is equality evaluation.
 
-You can also use command substitution to test for the output of a command. Both sides of the equality operator get parsed to Str variables only; no type inference here.
+You can also use command substitution to test for the output of a command. Both sides of the equality operator get parsed to Str variables only; no type inference is performed here. In addition, the output is not split on whitespace, it gets compared as one complete string.
 ```
 $ if $(echo hello) == "hello"
 if > echo howdy
@@ -138,7 +138,7 @@ howdy
 This is useful if you need to test an information file in `/sys` for a kernel status, or something similar.
 
 ### For Loops
-For loops are another very common programming construct found in (imperative-style) programming languages. The for loop in Oyster is extremely powerful because it iterates over the arguments it is passed. That means, anything that can expand to a list of arguments (which includes braces, globs, command substitution) is iterable.
+For loops are another very common programming construct found in (imperative-style) programming languages. The for loop in Oyster is extremely powerful because it iterates over and expands the arguments it is passed. That means, anything that can expand to a list of arguments (which includes braces, globs, command substitution, and arrays) is iterable, and will be iterated over individually.
 
 The syntax of the for loop is as follows:
 
@@ -154,9 +154,30 @@ The simplest iterable is a simple list of arguments passed manually:
 
 but more complex iterables such as braces and globs can be used here.
 
+For loops can be something as crazy as:
+```
+$ let arr name = [dipper,pines] #declaring an array
+$ for i in hello $(echo my name is) $name and [3..=1] "i blew up the mystery shack"
+for > echo $i
+for > done
+
+hello
+my
+name
+is
+dipper
+pines
+and
+3
+2
+1
+i blew up the mystery shack
+```
+In this loop, command substitution, array expansion and range expansion are used. These can all be used in conjunction with each other; oyster iterates over each word in the arguments and expands/translates then accordingly.
+
 The only valid square bracket notation here is the range notation; see above.
 
-Command substitution are also valid in for loops. They expand to a list of strings, split by whitespace (which includes newlines).
+Command substitutions are also valid in for loops. They expand to a list of strings, split by whitespace (which includes newlines).
 
 The variable in the loop declaration is a valid shell variable of inferred type, and can be expanded:
 ```
