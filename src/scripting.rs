@@ -16,7 +16,10 @@ use crate::types::{
 use crate::shell::{
     Shell,
 };
-use crate::expansion::substitute_commands;
+use crate::expansion::{
+    substitute_commands,
+    expand_variables,
+};
 use crate::execute::{
     execute_jobs,
     execute as exec,
@@ -134,19 +137,33 @@ impl Construct {
                         ShellError::from("oyster: invalid for loop syntax")
                     )
                 }
+
                 let mut iterable = Vec::new();
                 for word in &details.args[3..] {
                     if word.0 == Quote::SqBrkt {
                         iterable.extend(expand_sqbrkt_range(shell, &word.1)?);
-                    } else if word.0 == Quote::CmdSub
-                        || word.0 == Quote::BQuote {
+                    } else if word.0 == Quote::CmdSub || word.0 == Quote::BQuote {
                         let strings: Vec<(Quote, String)> = 
                         substitute_commands(shell, &word.1)?
                         .split_whitespace().map(|s| 
                             (Quote::NQuote, s.to_string())
                         ).collect();
                         iterable.extend(strings);
-                    } else if word.1.starts_with("$") {
+
+                    } else if word.0 == Quote::DQuote {
+                        let mut string = word.1.clone();
+                        expand_variables(shell, &mut string);
+                        let string = substitute_commands(shell, &string)?;
+                        iterable.push((Quote::NQuote, string));
+
+                    } else if word.1.starts_with("$") && word.0 == Quote::NQuote {
+                        if let Some(var) = shell.get_variable(&word.1[1..]) {
+                            iterable.push((Quote::NQuote, var.to_string()))
+                        } else {
+                            return Err(ShellError::from("oyster: variable not found"))
+                        }
+
+                    } else if word.1.starts_with("@") && word.0 == Quote::NQuote {
                         if let Some(var) = shell.get_variable(&word.1[1..]) {
                             if let Variable::Arr(arr) = var {
                                 iterable.extend(arr.into_iter()
@@ -154,11 +171,14 @@ impl Construct {
                                     .collect::<Vec<(Quote, String)>>()
                                 )
                             } else {
-                                iterable.push((Quote::NQuote, var.to_string()))
+                                return Err(ShellError::from("oyster: variable is not an array"))
                             }
                         } else {
                             return Err(ShellError::from("oyster: variable not found"))
                         }
+
+                    } else if word.0 == Quote::NmSpce {
+                        //TODO
                     } else {
                         iterable.push(word.clone())
                     }
