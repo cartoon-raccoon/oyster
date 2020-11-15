@@ -481,20 +481,36 @@ pub struct Cmd {
 }
 
 impl Cmd {
-    /// Checks the quote type and acts on the quote accordingly
+    /// Checks the quote type and acts on the quote accordingly.
+    /// This is essentially where expansion is performed.
     pub fn from_tokencmd(shell: &mut Shell, mut cmd: TokenCmd) -> Result<Self, ShellError> {
+        let mut newargs: Vec<String> = Vec::new();
         match cmd.cmd.0 {
             Quote::NQuote => {
                 expand_variables(shell, &mut cmd.cmd.1);
                 expand_tilde(shell, &mut cmd.cmd.1);
+                newargs.push(cmd.cmd.1.clone());
             }
             Quote::DQuote => {
                 expand_variables(shell, &mut cmd.cmd.1);
+                match substitute_commands(shell, &cmd.cmd.1) {
+                    Ok(string) => {
+                        newargs.push(string.clone());
+                        cmd.cmd = (Quote::NQuote, string);
+                    }
+                    Err(e) => {
+                        return Err(e.into());
+                    }
+                }
             }
             Quote::CmdSub => {
                 match substitute_commands(shell, &cmd.cmd.1) {
                     Ok(string) => {
-                        cmd.cmd = (Quote::NQuote, string);
+                        let strings: Vec<String> = string.
+                            split_whitespace().map(|s| s.to_string())
+                            .collect();
+                        cmd.cmd = (Quote::NQuote, strings[0].clone());
+                        newargs.extend(strings);
                     }
                     Err(e) => {
                         return Err(e.into());
@@ -505,7 +521,11 @@ impl Cmd {
                 expand_variables(shell, &mut cmd.cmd.1);
                 match substitute_commands(shell, &cmd.cmd.1) {
                     Ok(string) => {
-                        cmd.cmd = (Quote::NQuote, string);
+                        let strings: Vec<String> = string.
+                            split_whitespace().map(|s| s.to_string())
+                            .collect();
+                        cmd.cmd = (Quote::NQuote, strings[0].clone());
+                        newargs.extend(strings);
                     }
                     Err(e) => {
                         return Err(e.into());
@@ -513,18 +533,24 @@ impl Cmd {
                 }
             }
             Quote::NmSpce => {
+                newargs.push(cmd.cmd.1.clone());
                 //TODO
             }
-            Quote::SQuote => {}
+            Quote::SQuote => {
+                newargs.push(cmd.cmd.1.clone());
+            }
             Quote::SqBrkt => {
-                cmd.cmd = (Quote::NQuote, eval_sqbrkt(shell, cmd.cmd.1)?.to_string())
+                let result = eval_sqbrkt(shell, cmd.cmd.1.clone())?.to_string();
+                newargs.push(result.clone());
+                cmd.cmd = (Quote::NQuote, result);
             }
         }
-        let mut newargs: Vec<String> = Vec::new(); 
-        for (quote, mut string) in cmd.args {
+        for (quote, mut string) in cmd.args[1..].to_vec() {
             match quote {
                 Quote::NQuote => {
-                    if string.starts_with("$") {
+                    expand_variables(shell, &mut string);
+                    expand_tilde(shell, &mut string);
+                    if string.starts_with("@") {
                         if let Some(var) = shell.get_variable(&string[1..]) {
                             if let Variable::Arr(arr) = var {
                                 newargs.extend(arr.into_iter().map(|elem| {
@@ -532,16 +558,23 @@ impl Cmd {
                                 }).collect::<Vec<String>>());
                                 continue;
                             } else {
-                                string = var.to_string();
+                                return Err(ShellError::from("oyster: variable is not a array"))
                             }
                         } else {
-                            string = String::from("")
+                            //???
                         }
                     }
-                    expand_tilde(shell, &mut string);
                 }
                 Quote::DQuote => {
                     expand_variables(shell, &mut string);
+                    match substitute_commands(shell, &string) {
+                        Ok(newstring) => {
+                            string = newstring;
+                        }
+                        Err(e) => {
+                            return Err(e.into());
+                        }
+                    }
                 }
                 Quote::CmdSub => {
                     match substitute_commands(shell, &string) {
