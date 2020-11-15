@@ -6,8 +6,7 @@ To look at the other programming constructs, see [Scripting Constructs](scriptin
 ### Functions
 Functions are simply blocks of commands assigned to a common identifier, and are run together, in the sequence specified. While similar to aliases, functions differ in that like real programming functions, they can be passed parameters. They are also more versatile than aliases, in that they can easily contain scripting constructs, and can be used to run multiple scripting constructs on demand with a single word.
 
-Functions are defined with the `func` keyword, and are called with the name and `()` concatenated to the back.
-To denote the end of the function, you must use the `endfn` keyword.
+Unlike other POSIX shells, function definitions are delimited with the `func` and `endfn` keywords, and are called with the name and `()` concatenated to the back.
 As with scripting constructs, the shell parser can detect functions, and will wait for further input if it detects the function is not yet complete.
 ```
 $ func say_hello
@@ -18,7 +17,7 @@ func > endfn
 
 $ say_hello()
 Hi!
-What 's popping?
+What's popping?
 bye!
 ```
 Functions cannot be defined inside scripting constructs:
@@ -113,7 +112,7 @@ There are two ways to define variables: implicitly, and with the `let` command.
 <name>=<value>
 let <type> <name> = <value>
 ```
-The second way is the only way to assign quoted text. Variable types are mostly inferred: the first way will automatically infer types, and `let` will infer types if `<type>` is not specified.
+The second way is heavily inspired by the Rust syntax itself, and is the only way to assign quoted text. Variable types are mostly inferred: the first way will automatically infer types, and `let` will infer types if `<type>` is not specified.
 
 Ints are stored internally as signed 64-bit numbers, and floats are stored as signed 64-bit floats. Oyster can detect overflow or underflow when performing operations, and will return an error if this happens. If attempting to assign a value greater than the maximum value of the variable type, `let` will return an error if the type is specified, if not it will follow type inference procedure and assign the variable as the type that first passes the parse.
 
@@ -124,7 +123,9 @@ oyster: command hello!=2 not found
 ```
 `let` will do an explicit check for this constraint and return an error if it is not met.
 
-_Note:_ using quotes with let will not affect the way the value is inferred. `let numstring = "2"` will still yield an Int of value 2. This is because `let` is run and passed its arguments after almost all parsing and expansions have been completed, so the quotes by now will have been removed, which means `let` cannot see a difference between `2` and `"2"`. To explicitly pass a number as a string, you need to specify the type as an argument to `let`:
+Implicit declaration is heavily discouraged and may be outright removed in the future. You are encouraged to explicitly declare all your variables with `let`.
+
+_Note:_ using quotes with `let` will not affect the way the value is inferred. `let numstring = "2"` will still yield an Int of value 2. This is because `let` is run and passed its arguments after almost all parsing and expansions have been completed, so the quotes by now will have been removed, which means `let` cannot see a difference between `2` and `"2"`. To explicitly pass a number as a string, you need to specify the type as an argument to `let`:
 
 `let str numstring = 2`
 
@@ -139,7 +140,7 @@ Declaring arrays requires the use of a square bracket. Each element in the array
 
 `let arr greet = [hello,my,name,is,dipper,pines]`
 
-Each element in the array is type inferred, you cannot specify the types it will take.
+Each element in the array is type inferred, you cannot specify the types it will take. `let` can infer that the type you want is an array as long as its argument is a square bracket. Type inference is not implemented directly for arrays, and thus arrays cannot be declared implicitly.
 
 If the type is specified but the value cannot be parsed as that type, `let` returns an error.
 
@@ -149,10 +150,16 @@ $ let hello = "howdy pardner"
 $ echo $hello
 howdy pardner
 ```
-Expanding non-array variables always expands to a string. Arrays expand to a list of strings:
+Unlike other POSIX shells, Oyster has additional support for arrays. They can be expanded using either `$` or `@`. `$` expansion expands the array to a single string, with each element separated by a space. `@` expands the array to a list of strings that can be iterated over.
 
 ```
 $ for word in $greet
+for > echo $word
+for > done
+
+hello my name is dipper pines
+
+$ for word in @greet
 for > echo $word
 for > done
 
@@ -163,7 +170,8 @@ is
 dipper
 pines
 ```
+This syntax was inspired by the Ion shell.
 
 To operate on variables as their types, you need to enclose the operation inside a square bracket. See [expansions](expansions.md) for more information.
 
-As of now, `$` cannot be backslash-escaped. The only way to use a literal $ is to enclose it in single quotes (variable expansion is performed on double quotes). This is a bug and will be fixed.
+As of now, `$` and `@` cannot be backslash-escaped. The only way to use a literal $ is to enclose it in single quotes (variable expansion is performed on double quotes). This is a bug and will be fixed.

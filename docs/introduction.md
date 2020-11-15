@@ -7,6 +7,8 @@ Oyster is written in Rust, a systems programming language that provides memory s
 
 Oyster is mostly a small side project that I work on in my spare time, and has a fraction of the features boasted by other more complex shells like bash, zsh or fish. However, the roadmap for this shell is clear (see notes) and I plan to implement all of them and more as time passes.
 
+Oyster is not POSIX compliant. It has relatively few features compared to the POSIX shells like bash or zsh, and simplifies to features that in POSIX shells some might confusing to use. It aims to be easy and simple to use, and to this end heavily draws inspiration from Ion (the Redox OS shell) and some ideas from the fish shell. However, the base syntax (pipes and redirections, etc) are identical to the POSIX shells.
+
 ### On This Page
 - Definitions
 - Startup Sequence
@@ -21,7 +23,7 @@ Oyster is mostly a small side project that I work on in my spare time, and has a
 7. [Prompt Customization](prompt.md)
 
 ## Definitions
-While this shell is mostly syntactically similar to Bash or Zsh, it does have a few ideas of its own, mostly changing some syntax around, while drawing some ideas from the fish shell and Ion (the shell for Redox OS). It also uses some terms in its documentation that may need defining.
+Oyster has some concepts covered in its documentation that may need defining.
 
 **Metacharacter**
 
@@ -83,7 +85,7 @@ The RC file is normally `~/.config/oyster/oshrc`, and is basically a shell scrip
 ## POSIX Compliance
 Oyster is already not POSIX-compliant, because of some of its syntax (the same contruct is used to expand ranges, operate on variables and test equality), and its limited feature set. Bash and zsh scripts definitely will not work on this shell.
 
-Oyster is mainly designed for everyday work such as running individual commands, and can provide some simple scripting when needed. When heavy lifting is needed in the form of a long, complex shell script, one can invoke Bash or zsh to run it, especially with the UNIX shebang.
+Oyster is mainly designed for everyday interactive work such as running individual commands, and can provide some simple scripting when needed. When heavy lifting is needed in the form of a long, complex shell script, one can invoke Bash or zsh to run it, especially with the UNIX shebang.
 
 ~~I may or may not be using the lightweightedness of Oyster as an excuse for its limited features.~~
 

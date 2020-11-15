@@ -45,7 +45,23 @@ See [Functions and Variables](functions.md) for more information on variables.
 
 ### Square Bracket Expansions
 
-Square brackets have different meanings to the shell in different contexts.
+Square brackets have different meanings to the shell in different contexts. In POSIX shells, square brackets are only used to evaluate conditions, but here they are used for range expansion, equality testing and variable operations.
+```
+$ for i in [1..=5]
+for > echo [$i + 4]
+for > if [$i == 3]
+if > echo i is 3
+if > end
+for > done
+
+5
+6
+7
+i is 3
+8
+9
+```
+This example shows square brackets being used differently in a single construct.
 
 When used in scripting constructs, their meanings again differ depending on the construct used. 
 
@@ -64,7 +80,7 @@ counting to 4
 counting to 5
 ```
 
-In if statements, the square bracket is used to compare variables.
+In if statements and while loops, the square bracket is used to compare variables.
 ```
 $ let int number = 69
 $ if [$number < 420]
@@ -81,10 +97,10 @@ The syntax for square bracket operations is as follows:
 
 `[<operand> <operator> <operand>]`
 
-The operands and operator must be separated by spaces, if not the shell cannot properly parse the contents. If the shell cannot parse the contents, the squqre bracket will not be expanded, and instead the contents of the bracket will be returned.
+The operands and operator must be separated by spaces, if not the shell cannot properly parse the contents. If the shell cannot parse the contents, the square bracket will not be expanded, and instead the contents of the bracket will be returned with the surrounding brackets.
 ```
 $ echo [hello]
-hello
+[hello]
 ```
 Currently, there are 4 operations that can be performed on variables: Add, Subtract, Multiply and Divide. For strings, only Add can be performed, which concatenates the strings together. Any other operator will cause the shell to return an error.
 ```
@@ -93,7 +109,7 @@ oyster: operators other than `+` are not supported for strings
 ```
 Arrays cannot be operated on in any way, the shell will throw an error if attempting to do so.
 
-Operate-and-assign operators exist in the source code, but they only currently return a "not supported" error.
+Operate-and-assign operators exist in the source code, but they only currently return a "not supported" error. They will likely be implemented as part of the `let` command.
 
 The operand can be a literal, in which case the type is inferred, or can be a variable, designated with a `$`. If there is no `$`, the operand is treated as a literal.
 

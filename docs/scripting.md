@@ -157,7 +157,7 @@ but more complex iterables such as braces and globs can be used here.
 For loops can be something as crazy as:
 ```
 $ let arr name = [dipper,pines] #declaring an array
-$ for i in hello $(echo my name is) $name and [3..=1] "i blew up the mystery shack"
+$ for i in hello $(echo my name is) @name and [3..=1] "i blew up the mystery shack"
 for > echo $i
 for > done
 
@@ -173,7 +173,7 @@ and
 1
 i blew up the mystery shack
 ```
-In this loop, command substitution, array expansion and range expansion are used. These can all be used in conjunction with each other; oyster iterates over each word in the arguments and expands/translates then accordingly.
+In this loop, command substitution, array expansion and range expansion are used. These can all be used in conjunction with each other; oyster iterates over each word in the arguments and expands/translates them accordingly.
 
 The only valid square bracket notation here is the range notation; see above.
 
