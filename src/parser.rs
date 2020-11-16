@@ -13,7 +13,6 @@ use crate::shell::Shell;
 
 use crate::expansion::{
     expand_variables,
-    expand_braces,
     expand_glob,
     expand_tilde,
     replace_aliases,
@@ -813,8 +812,7 @@ impl Lexer {
                         buffer.push((Quote::NmSpce, string));
                     }
                     Token::Brace(string) => {
-                        let expanded = expand_braces(string);
-                        buffer.extend(expanded);
+                        buffer.push((Quote::CBrace, string));
                     }
                     rd @ Token::Redirect |
                     rd @ Token::RDAppend |

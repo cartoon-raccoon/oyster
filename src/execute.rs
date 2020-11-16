@@ -10,13 +10,13 @@ use crate::types::{
     CommandResult,
     ShellError,
     ExecType,
-    Variable,
 };
 use crate::core;
 use crate::shell::{
     self, Shell
 };
 use crate::expansion::{
+    expand_braces,
     expand_variables,
     expand_tilde,
     substitute_commands,
@@ -292,53 +292,51 @@ fn extract_constructs(jobs: Vec<Job>) -> Result<Vec<ExecType>, ShellError> {
     Ok(to_return)
 }
 
-fn execute_func(shell: &mut Shell, mut job: Job) -> Result<(i32, String), ShellError> {
+fn execute_func(shell: &mut Shell, job: Job) -> Result<(i32, String), ShellError> {
     let func_to_exec =
         job.cmds[0].cmd.1.replace("()", "");
     let mut func_args = Vec::<String>::new();
     if job.cmds[0].args.len() > 1 {
-        func_args = job.cmds[0].args[1..].iter_mut().map(
-            |(quote, string)| {
-                match quote {
-                    Quote::NQuote => {
-                        expand_variables(shell, string);
-                        expand_tilde(shell, string);
-                    }
-                    Quote::DQuote => {
-                        expand_variables(shell, string);
-                    }
-                    Quote::BQuote => {
-                        expand_variables(shell, string);
-                        return substitute_commands(
-                            shell, &string
-                        ).unwrap_or_else(|_e| {
-                            eprintln!("oyster: error in command substitution");
-                            String::new()
-                        })
-                    }
-                    Quote::CmdSub => {
-                        return substitute_commands(
-                            shell, &string
-                        ).unwrap_or_else(|_e| {
-                            eprintln!("oyster: error in command substitution");
-                            String::new()
-                        })
-                    }
-                    Quote::NmSpce => {
-                        //TODO
-                    }
-                    Quote::SQuote => {}
-                    Quote::SqBrkt => {
-                        return shell::eval_sqbrkt(shell, string.clone())
-                        .unwrap_or_else(|e| {
-                            eprintln!("{}", e);
-                            Variable::from("")
-                        }).to_string()
-                    }
+        func_args = Vec::new();
+        for (quote, mut string) in job.cmds[0].args[1..].to_vec() {
+            match quote {
+                Quote::NQuote => {
+                    expand_variables(shell, &mut string);
+                    expand_tilde(shell, &mut string);
+                    func_args.push(string);
                 }
-                string.clone()
+                Quote::DQuote => {
+                    expand_variables(shell, &mut string);
+                    string = substitute_commands(shell, &string)?;
+                    func_args.push(string);
+                }
+                Quote::BQuote => {
+                    expand_variables(shell, &mut string);
+                    func_args.extend(substitute_commands(shell, &string)?
+                        .split_whitespace().map(|s| s.to_string())
+                        .collect::<Vec<String>>()
+                    );
+                }
+                Quote::CmdSub => {
+                    func_args.extend(substitute_commands(shell, &string)?
+                        .split_whitespace().map(|s| s.to_string())
+                        .collect::<Vec<String>>()
+                    );
+                }
+                Quote::CBrace => {
+                    func_args.extend(expand_braces(shell, string)?);
+                }
+                Quote::NmSpce => {
+                    func_args.push(string);
+                }
+                Quote::SQuote => {
+                    func_args.push(string);
+                }
+                Quote::SqBrkt => {
+                    func_args.push(shell::eval_sqbrkt(shell, string.clone())?.to_string());
+                }
             }
-        ).collect();
+        }
     }
     return shell.execute_func(&func_to_exec, func_args)
 }

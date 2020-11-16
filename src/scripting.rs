@@ -19,6 +19,9 @@ use crate::shell::{
 use crate::expansion::{
     substitute_commands,
     expand_variables,
+    expand_tilde,
+    expand_braces,
+    expand_range,
 };
 use crate::execute::{
     execute_jobs,
@@ -124,7 +127,7 @@ impl Construct {
                 //removing "done"
                 raw.remove(len - 1);
                 //removing the "for" command
-                let details = raw.remove(0).cmds.remove(0);
+                let mut details = raw.remove(0).cmds.remove(0);
                 if details.args.len() < 4 {
                     return
                     Err(
@@ -139,14 +142,14 @@ impl Construct {
                 }
 
                 let mut iterable = Vec::new();
-                for word in &details.args[3..] {
+                for word in &mut details.args[3..] {
                     if word.0 == Quote::SqBrkt {
-                        iterable.extend(expand_sqbrkt_range(shell, &word.1)?);
+                        iterable.extend(expand_range(shell, &word.1)?);
                     } else if word.0 == Quote::CmdSub || word.0 == Quote::BQuote {
-                        let strings: Vec<(Quote, String)> = 
+                        let strings: Vec<String> = 
                         substitute_commands(shell, &word.1)?
                         .split_whitespace().map(|s| 
-                            (Quote::NQuote, s.to_string())
+                            s.to_string()
                         ).collect();
                         iterable.extend(strings);
 
@@ -154,11 +157,11 @@ impl Construct {
                         let mut string = word.1.clone();
                         expand_variables(shell, &mut string);
                         let string = substitute_commands(shell, &string)?;
-                        iterable.push((Quote::NQuote, string));
+                        iterable.push(string);
 
                     } else if word.1.starts_with("$") && word.0 == Quote::NQuote {
                         if let Some(var) = shell.get_variable(&word.1[1..]) {
-                            iterable.push((Quote::NQuote, var.to_string()))
+                            iterable.push(var.to_string())
                         } else {
                             return Err(ShellError::from("oyster: variable not found"))
                         }
@@ -167,8 +170,8 @@ impl Construct {
                         if let Some(var) = shell.get_variable(&word.1[1..]) {
                             if let Variable::Arr(arr) = var {
                                 iterable.extend(arr.into_iter()
-                                    .map(|var| (Quote::NQuote, var.to_string()))
-                                    .collect::<Vec<(Quote, String)>>()
+                                    .map(|var| var.to_string())
+                                    .collect::<Vec<String>>()
                                 )
                             } else {
                                 return Err(ShellError::from("oyster: variable is not an array"))
@@ -177,10 +180,19 @@ impl Construct {
                             return Err(ShellError::from("oyster: variable not found"))
                         }
 
+                    } else if word.0 == Quote::CBrace {
+                        let expanded = expand_braces(shell, word.1.clone())?
+                            .into_iter().map(|mut s| {
+                            expand_tilde(shell, &mut s);
+                            s
+                        }).collect::<Vec<String>>();
+                        iterable.extend(expanded);
                     } else if word.0 == Quote::NmSpce {
                         //TODO
+                        iterable.push(word.1.clone())
                     } else {
-                        iterable.push(word.clone())
+                        expand_tilde(shell, &mut word.1);
+                        iterable.push(word.1.clone())
                     }
                 }
                 //TODO: match on Quote type
@@ -193,7 +205,7 @@ impl Construct {
                     loop_var: details.args[1].1.to_string(),
                     iterable: iterable
                         .into_iter()
-                        .map(|tuple| Variable::from(tuple.1))
+                        .map(|s| Variable::from(s))
                         .collect(),
                     code: final_code,
                 })
@@ -343,70 +355,6 @@ enum EqTest {
     Gt,
     Le,
     Ge,
-}
-
-fn expand_sqbrkt_range(shell: &mut Shell, brkt: &str) -> Result<Vec<(Quote, String)>, ShellError> {
-    let mut range: Vec<String> = brkt.split("..").filter(
-        |string| !string.is_empty()
-    ).map(|string| string.to_string()).collect();
-    if range.len() < 2 || range.len() > 3 {
-        //println!("{}", brkt);
-        return Err(
-            ShellError::from("oyster: error expanding range")
-        )
-    }
-    let step_by = if range.len() == 3 {
-        match range[2].parse::<u32>() {
-            Ok(int) => int,
-            Err(_) => {
-                return Err(
-                    ShellError::from("oyster: invalid argument in range")
-                )
-            }
-        }
-    } else {1};
-    let up_to_equals = range[1].starts_with("=");
-    if up_to_equals {
-        let replace = range[1].replace("=", "");
-        range[1] = replace;
-    }
-    let mut numeric = Vec::new();
-    for mut number in range {
-        if number.starts_with("$") {
-            if let Some(num) = shell.get_variable(&number[1..]) {
-                number = format!("{}", num)
-            } else {
-                return Err(ShellError::from("oyster: no variable in shell"))
-            }
-        }
-        match number.parse::<i32>() {
-            Ok(int) => {
-                numeric.push(int);
-            }
-            Err(_) => {
-                return Err(
-                    ShellError::from("oyster: invalid argument in range")
-                )
-            }
-        }
-    }
-    let (mut start, end) = (numeric[0], numeric[1]);
-    let mut to_return = Vec::new();
-    if start < end {
-        while start < end {
-            to_return.push((Quote::NQuote, start.to_string()));
-            start += step_by as i32;
-        }
-    } else {
-        while start > end {
-            to_return.push((Quote::NQuote, start.to_string()));
-            start -= step_by as i32;
-        }
-    }
-    if up_to_equals {
-        to_return.push((Quote::NQuote, end.to_string()));
-    }
-    Ok(to_return)
 }
 
 fn eval_condition(shell: &mut Shell, mut condition: Job) 

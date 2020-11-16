@@ -6,11 +6,11 @@ use glob::glob;
 use crate::shell::Shell;
 use crate::parser::Lexer;
 use crate::types::{
-    Quote,
     ParseError,
     ParseResult,
     TokenizeResult::*,
     CmdSubError,
+    ShellError,
 };
 use crate::execute;
 
@@ -212,15 +212,78 @@ mod brace_expansion {
     }
 }
 
-//TODO
-pub fn expand_braces(string: String) 
--> Vec<(Quote, String)> {
+pub fn expand_braces(shell: &mut Shell, mut string: String) -> Result<Vec<String>, ShellError> {
+    if string.starts_with("{") && string.ends_with("}") && string.contains("..") {
+        string.pop();
+        return Ok(expand_range(shell, &string[1..])?)
+    }
     let output = brace_expansion::tokenize(&string);
-    brace_expansion::output(output).into_iter()
-    .map(|string| (Quote::NQuote, string)).collect()
+    Ok(brace_expansion::output(output))
 }
 
-//TODO: file globbing, env expansion
+pub fn expand_range(shell: &mut Shell, brkt: &str) -> Result<Vec<String>, ShellError> {
+    let mut range: Vec<String> = brkt.split("..").filter(
+        |string| !string.is_empty()
+    ).map(|string| string.to_string()).collect();
+    if range.len() < 2 || range.len() > 3 {
+        //println!("{}", brkt);
+        return Err(
+            ShellError::from("oyster: error expanding range")
+        )
+    }
+    let step_by = if range.len() == 3 {
+        match range[2].parse::<u32>() {
+            Ok(int) => int,
+            Err(_) => {
+                return Err(
+                    ShellError::from("oyster: invalid argument in range")
+                )
+            }
+        }
+    } else {1};
+    let up_to_equals = range[1].starts_with("=");
+    if up_to_equals {
+        let replace = range[1].replace("=", "");
+        range[1] = replace;
+    }
+    let mut numeric = Vec::new();
+    for mut number in range {
+        if number.starts_with("$") {
+            if let Some(num) = shell.get_variable(&number[1..]) {
+                number = format!("{}", num)
+            } else {
+                return Err(ShellError::from("oyster: no variable in shell"))
+            }
+        }
+        match number.parse::<i32>() {
+            Ok(int) => {
+                numeric.push(int);
+            }
+            Err(_) => {
+                return Err(
+                    ShellError::from("oyster: invalid argument in range")
+                )
+            }
+        }
+    }
+    let (mut start, end) = (numeric[0], numeric[1]);
+    let mut to_return = Vec::new();
+    if start < end {
+        while start < end {
+            to_return.push(start.to_string());
+            start += step_by as i32;
+        }
+    } else {
+        while start > end {
+            to_return.push(start.to_string());
+            start -= step_by as i32;
+        }
+    }
+    if up_to_equals {
+        to_return.push(end.to_string());
+    }
+    Ok(to_return)
+}
 
 pub fn expand_variables(shell: &Shell, string: &mut String) {
     lazy_static! {

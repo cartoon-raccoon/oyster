@@ -13,6 +13,7 @@ use crate::shell::{
     eval_sqbrkt,
 };
 use crate::expansion::{
+    expand_braces,
     expand_variables,
     expand_tilde,
     substitute_commands,
@@ -417,6 +418,7 @@ pub enum Quote {
     BQuote,
     CmdSub,
     SqBrkt,
+    CBrace,
     NmSpce,
 }
 
@@ -456,6 +458,9 @@ impl fmt::Display for TokenCmd {
                 }
                 Quote::SqBrkt => {
                     return format!("[{}]", string);
+                }
+                Quote::CBrace => {
+                    return format!("{}", string);
                 }
                 Quote::NmSpce => {
                     return format!("${{{}}}", string);
@@ -532,6 +537,11 @@ impl Cmd {
                     }
                 }
             }
+            Quote::CBrace => {
+                let expanded = expand_braces(shell, cmd.cmd.1)?;
+                cmd.cmd = (Quote::NQuote, expanded[0].clone());
+                newargs.extend(expanded);
+            }
             Quote::NmSpce => {
                 newargs.push(cmd.cmd.1.clone());
                 //TODO
@@ -604,6 +614,11 @@ impl Cmd {
                             return Err(e.into());
                         }
                     }
+                }
+                Quote::CBrace => {
+                    let expanded = expand_braces(shell, string)?;
+                    newargs.extend(expanded);
+                    continue;
                 }
                 Quote::NmSpce => {
                     //TODO
