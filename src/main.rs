@@ -13,7 +13,6 @@ mod expansion;
 extern crate lazy_static;
 
 use std::error::Error;
-use std::io::{self, Write};
 use std::env;
 use std::process;
 
@@ -136,22 +135,58 @@ fn main() -> Result<(), Box<dyn Error>> {
                                     break;
                                 }
                                 n@ _ => {
-                                    print!("{}", n); io::stdout().flush().unwrap();
-                                    match io::stdin().read_line(&mut buffer) {
-                                        Ok(_) => {},
+                                    match lr.set_prompt(&n.to_string()) {
+                                        Ok(_) => {}
                                         Err(_) => {
-                                            eprintln!("oyster: error reading to line");
+                                            eprintln!("oyster: could not set prompt")
+                                        }
+                                    } 
+                                    match lr.read_line() {
+                                        Ok(ReadResult::Input(line)) => {
+                                            buffer.push_str(&line);
+                                            buffer.push('\n');
+                                        }
+                                        Ok(ReadResult::Eof) => {
+                                            process::exit(100);
+                                        }
+                                        Ok(ReadResult::Signal(signal)) => {
+                                            if let TSignal::Interrupt = signal {
+                                                last_status = 20;
+                                                break;
+                                            }
+                                        }
+                                        Err(_) => {
+                                            last_status = 1;
+                                            break;
                                         }
                                     }
                                 }
                             }
                         }
                         n@ _ => {
-                            print!("{}", n); io::stdout().flush().unwrap();
-                            match io::stdin().read_line(&mut buffer) {
-                                Ok(_) => {},
+                            match lr.set_prompt(&n.to_string()) {
+                                Ok(_) => {}
                                 Err(_) => {
-                                    eprintln!("oyster: error reading to line");
+                                    eprintln!("oyster: could not set prompt")
+                                }
+                            } 
+                            match lr.read_line() {
+                                Ok(ReadResult::Input(line)) => {
+                                    buffer.push_str(&line);
+                                    buffer.push('\n');
+                                }
+                                Ok(ReadResult::Eof) => {
+                                    process::exit(100);
+                                }
+                                Ok(ReadResult::Signal(signal)) => {
+                                    if let TSignal::Interrupt = signal {
+                                        last_status = 20;
+                                        break;
+                                    }
+                                }
+                                Err(_) => {
+                                    last_status = 1;
+                                    break;
                                 }
                             }
                         }
