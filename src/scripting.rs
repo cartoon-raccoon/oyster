@@ -65,9 +65,9 @@ pub fn execute_scriptfile(shell: &mut Shell, filename: &str) -> Result<i32, Shel
 /// 
 /// A recursive type that forms an abstract syntax tree.
 /// 
-/// The `For` and `If` variants are branches that store the enum
-/// itself and the `Code` variant is the leaf (base case) that
-/// stores the actual commands to execute.
+/// The `For` , `While` and `If` variants are branches that store the enum
+/// itself alongside execution information, and the `Code` variant 
+/// is the leaf (base case) that stores the actual commands to execute.
 /// This allows `Construct` to recursively build itself
 /// and then recursively execute itself.
 /// Each variant implements its own behaviour, but ultimately
@@ -77,12 +77,13 @@ pub fn execute_scriptfile(shell: &mut Shell, filename: &str) -> Result<i32, Shel
 /// the exit status of the last command.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Construct {
-    /// Represents a `for` loop
+    /// Represents a `for` loop.
     For {
         loop_var: String,
         iterable: Vec<Variable>,
         code: Vec<Box<Construct>>,
     },
+    /// Represents a `while` loop.
     While {
         condition: Job,
         code: Vec<Box<Construct>>,

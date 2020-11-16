@@ -179,9 +179,29 @@ button.css button.js
 $ echo un{trace,deni}able
 untraceable undeniable
 ```
-Braces can be nested and are expanded recursively.
+Braces can be nested and are expanded recursively:
+```
+$ echo 1{2,{3,4},5}6
+126 136 146 156
+```
 
-Braces can be used in shell constructs too:
+Braces can also be expanded into ranges. If a brace has no prefix or suffix, and contains the substring `..`, it is automatically treated as a range to expanded.
+
+Ranges expand to an array of numbers in the same fashion as square bracket ranges:
+
+`{1..10}` expands to `1 2 3 4 5 6 7 8 9`.
+
+To include the last number, use `=`:
+
+`{1..=10}` expands to `1 2 3 4 5 6 7 8 9 10`.
+
+Ranges can also be descending and stepped over:
+
+`{10..1}` expands to `10 9 8 7 6 5 4 3 2`.
+
+`{0..10..2}` expands to `0 2 4 6 8`.
+
+Braces expand to iterables, and thus can be used in for loops:
 ```
 $ for i in un{trace,deni}able
 for > echo $i

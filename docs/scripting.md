@@ -175,7 +175,7 @@ i blew up the mystery shack
 ```
 In this loop, command substitution, array expansion and range expansion are used. These can all be used in conjunction with each other; oyster iterates over each word in the arguments and expands/translates them accordingly.
 
-The only valid square bracket notation here is the range notation; see above.
+The only valid square bracket notation here is the range notation; see above. Also equivalent is brace range expansion.
 
 Command substitutions are also valid in for loops. They expand to a list of strings, split by whitespace (which includes newlines).
 
