@@ -6,7 +6,7 @@ This was borne out of a desire to understand process execution in Linux, and slo
 
 Trying to keep dependency count low, the only convenience crates used (as of now) are Regex, linefeed and glob.
 
-SLOC Count: `5263`
+SLOC Count: `5599`
 
 ## Features
 - Pipelining and conditional execution
@@ -18,11 +18,13 @@ SLOC Count: `5263`
 - Job control; sending jobs to and from background
 - Basic scripting with for loops and if/elif/else statements
     - Variables are typed and can be operated on
-    - Arrays that can be iterated over
+    - Arrays can be iterated over and indexed into
 - Script file interpretation (including rcfile reading)
 - Basic builtins like `which`, `cd` and `alias`
 - Directory stack manipulation
 - Customizable prompt with last exit indication, username and PWD
+
+See the [documentation](docs/introduction.md) for more details.
 
 ## Planned
 - Here documents/strings
@@ -36,8 +38,6 @@ SLOC Count: `5263`
 - Additional prompt customizability (git status, active environments, etc)
 - Additional builtins (history, env activation, etc)
 - Process substitution (tentative)
-
-See the [documentation](docs/introduction.md) for more details.
 
 This shell has been self-hosting since 19/10/2020, commit `f322fc3`. Every commit since then has been made with this shell.
 
