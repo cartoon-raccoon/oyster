@@ -172,6 +172,18 @@ pines
 ```
 This syntax was inspired by the Ion shell.
 
+You can also use `@` to index into arrays. If a word starts with `@` and ends with `]`, it is automatically treated as an array index.
+```
+$ echo @greet[0]
+hello
+
+$ echo @greet[5]
+pines
+```
+If Oyster cannot parse the characters inside the square brackets into an unsigned integer, it will return an error.
+
+Oyster also does bounds checking, and will return an error if the index is larger than the array length.
+
 To operate on variables as their types, you need to enclose the operation inside a square bracket. See [expansions](expansions.md) for more information.
 
 As of now, `$` and `@` cannot be backslash-escaped. The only way to use a literal $ is to enclose it in single quotes (variable expansion is performed on double quotes). This is a bug and will be fixed.
