@@ -146,14 +146,19 @@ impl Construct {
                 for word in &mut details.args[3..] {
                     if word.0 == Quote::SqBrkt {
                         iterable.extend(expand_range(shell, &word.1)?);
-                    } else if word.0 == Quote::CmdSub || word.0 == Quote::BQuote {
-                        let strings: Vec<String> = 
-                        substitute_commands(shell, &word.1)?
-                        .split_whitespace().map(|s| 
-                            s.to_string()
-                        ).collect();
-                        iterable.extend(strings);
-
+                    } else if word.0 == Quote::CmdSub {
+                        if word.1.starts_with("$") {
+                            iterable.push(substitute_commands(shell, &word.1)?);
+                        } else if word.1.starts_with("@") {
+                            let strings: Vec<String> = 
+                            substitute_commands(shell, &word.1)?
+                            .split_whitespace().map(|s| 
+                                s.to_string()
+                            ).collect();
+                            iterable.extend(strings);
+                        }
+                    } else if word.0 == Quote::BQuote {
+                        iterable.push(substitute_commands(shell, &word.1)?);
                     } else if word.0 == Quote::DQuote {
                         let mut string = word.1.clone();
                         expand_variables(shell, &mut string);

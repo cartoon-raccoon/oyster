@@ -324,7 +324,7 @@ pub fn substitute_commands(shell: &mut Shell, string: &str) -> Result<String, Cm
     // Tokenizing and capturing cmbsubs first
     lazy_static! {
         static ref CMDSUB_RE: Regex = Regex::new(
-            "\\$\\([\\a-zA-Z0-9 \"-.@~/\\|<>\\&$()]+\\)"
+            "(\\$|@)\\([\\a-zA-Z0-9 \"-.@~/\\|<>\\&$()]+\\)"
         ).unwrap();
     }
     for capture in CMDSUB_RE.captures_iter(&string.clone()) {

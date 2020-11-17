@@ -199,10 +199,14 @@ impl Lexer {
                     word.clear();
                     in_sqbrkt = false;
                 }
-                '$' if line_iter.peek() == Some(&'(')
+                n@ '@' | n@ '$' if line_iter.peek() == Some(&'(')
                     && !in_squote && !in_cmdsub && !in_nmespc
                     && !in_sqbrkt && !in_bquote => {
-                    word.push_str("$(");
+                    if n == '@' {
+                        word.push_str("@(");
+                    } else if n == '$' {
+                        word.push_str("$(");
+                    }
                     has_brace = false;
                     ignore_next = true;
                     if !in_dquote {

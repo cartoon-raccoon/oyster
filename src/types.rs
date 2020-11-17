@@ -511,11 +511,15 @@ impl Cmd {
             Quote::CmdSub => {
                 match substitute_commands(shell, &cmd.cmd.1) {
                     Ok(string) => {
-                        let strings: Vec<String> = string.
-                            split_whitespace().map(|s| s.to_string())
-                            .collect();
-                        cmd.cmd = (Quote::NQuote, strings[0].clone());
-                        newargs.extend(strings);
+                        if cmd.cmd.1.starts_with("$") {
+                            newargs.push(string);
+                        } else if cmd.cmd.1.starts_with("@") {
+                            let strings: Vec<String> = string.
+                                split_whitespace().map(|s| s.to_string())
+                                .collect();
+                            cmd.cmd = (Quote::NQuote, strings[0].clone());
+                            newargs.extend(strings);
+                        }
                     }
                     Err(e) => {
                         return Err(e.into());
@@ -526,11 +530,15 @@ impl Cmd {
                 expand_variables(shell, &mut cmd.cmd.1);
                 match substitute_commands(shell, &cmd.cmd.1) {
                     Ok(string) => {
-                        let strings: Vec<String> = string.
-                            split_whitespace().map(|s| s.to_string())
-                            .collect();
-                        cmd.cmd = (Quote::NQuote, strings[0].clone());
-                        newargs.extend(strings);
+                        if cmd.cmd.1.starts_with("$") {
+                            newargs.push(string);
+                        } else {
+                            let strings: Vec<String> = string.
+                                split_whitespace().map(|s| s.to_string())
+                                .collect();
+                            cmd.cmd = (Quote::NQuote, strings[0].clone());
+                            newargs.extend(strings);
+                        }
                     }
                     Err(e) => {
                         return Err(e.into());
