@@ -42,6 +42,7 @@ impl Lexer {
         let mut in_sqbrkt = false;
         let mut in_nmespc = false;
         let mut brace_level: i32 = 0;
+        let mut sbrkt_level: i32 = 0;
         let mut has_brace = false;
         let mut ignore_next = false;
         let mut prev_char = None;
@@ -186,18 +187,29 @@ impl Lexer {
                         word.clear();
                     }
                 }
-                '[' if !in_dquote && !in_squote && !in_bquote && !in_nmespc
-                    && !in_cmdsub && prev_char == Some(' ') || prev_char == None => {
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    in_sqbrkt = true;
+                '[' if !in_dquote && !in_squote && !in_bquote 
+                    && !in_nmespc && !in_cmdsub => {
+                    sbrkt_level += 1;
+                    if prev_char == Some(' ') || prev_char == None {
+                        push(&mut tokenvec, &mut word, c, 
+                            in_dquote, in_squote, has_brace
+                        );
+                        sbrkt_level = 1;
+                        in_sqbrkt = true;
+                    } else {
+                        word.push(c);
+                    }
                 }
                 ']' if !in_squote && !in_bquote && !in_nmespc
                     && !in_dquote &&  in_sqbrkt && !in_cmdsub => {
-                    tokenvec.push(Token::SqBrkt(word.clone()));
-                    word.clear();
-                    in_sqbrkt = false;
+                    sbrkt_level -= 1;
+                    if sbrkt_level == 0 && in_sqbrkt {
+                        tokenvec.push(Token::SqBrkt(word.clone()));
+                        word.clear();
+                        in_sqbrkt = false;
+                    } else {
+                        word.push(c);
+                    }
                 }
                 n@ '@' | n@ '$' if line_iter.peek() == Some(&'(')
                     && !in_squote && !in_cmdsub && !in_nmespc

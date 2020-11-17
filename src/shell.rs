@@ -28,6 +28,7 @@ use crate::types::{
     JobStatus,
     ShellError,
 };
+use crate::expansion::index_into;
 use crate::execute;
 use crate::scripting::execute_scriptfile;
 
@@ -524,6 +525,12 @@ fn tokenize_sqbrkt(shell: &mut Shell, string: &str)
                 )
             )
         }
+    } else if parsed[0].1.starts_with("@") {
+        if parsed[0].1.contains("[") && parsed[0].1.contains("]") {
+            index_into(shell, &parsed[0].1)?
+        } else {
+            return Err(ShellError::from("oyster: cannot operate on arrays"))
+        }
     } else {
         Var::from(&parsed[0].1)
     };
@@ -538,6 +545,12 @@ fn tokenize_sqbrkt(shell: &mut Shell, string: &str)
                     format!("oyster: variable {} not found", &parsed[2].1[1..])
                 )
             )
+        }
+    } else if parsed[2].1.starts_with("@") {
+        if parsed[2].1.contains("[") && parsed[2].1.contains("]") {
+            index_into(shell, &parsed[2].1)?
+        } else {
+            return Err(ShellError::from("oyster: cannot operate on arrays"))
         }
     } else {
         Var::from(&parsed[2].1)
