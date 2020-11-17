@@ -11,6 +11,7 @@ use crate::types::{
     TokenizeResult::*,
     CmdSubError,
     ShellError,
+    Variable,
 };
 use crate::execute;
 
@@ -300,6 +301,48 @@ pub fn expand_variables(shell: &Shell, string: &mut String) {
     }
 }
 
+pub fn index_into(shell: &Shell, string: &str) 
+-> Result<Variable, ShellError> {
+    let mut var_name = String::new();
+    let mut idx = String::new();
+    let mut in_idx = false;
+    for c in string[1..].chars() {
+        if c == '[' { 
+            in_idx = true; 
+            continue; 
+        }
+        if c == ']' { break; }
+        if in_idx {
+            idx.push(c);
+        } else {
+            var_name.push(c);
+        }
+    }
+    let idx: usize = if let Ok(int) = idx.parse() {
+        int
+    } else {
+        return Err(ShellError::from("error: cannot parse index"))
+    };
+    if let Some(var) = shell.get_variable(&var_name) {
+        if let Variable::Arr(arr) = var {
+            if idx + 1 > arr.len() {
+                return Err(
+                    ShellError::from(format!("error: len is {} but index is {}", 
+                        arr.len(), idx + 1)
+                    )
+                )
+            }
+            return Ok(arr[idx].clone())
+        } else {
+            return Err(ShellError::from("error: variable is not an array"))
+        }
+    } else {
+        return Err(
+            ShellError::from(format!("error: no variable {} found", var_name))
+        )
+    }
+}
+
 pub fn expand_glob(string: &str) -> Result<Vec<String>, ParseError> {
     let mut to_return = Vec::new();
     for path in glob(string)? {
@@ -324,7 +367,7 @@ pub fn substitute_commands(shell: &mut Shell, string: &str) -> Result<String, Cm
     // Tokenizing and capturing cmbsubs first
     lazy_static! {
         static ref CMDSUB_RE: Regex = Regex::new(
-            "(\\$|@)\\([\\a-zA-Z0-9 \"-.@~/\\|<>\\&$()]+\\)"
+            "(\\$|@)\\([\\a-zA-Z0-9 \"-.@~/\\|<>\\[\\]\\&$()]+\\)"
         ).unwrap();
     }
     for capture in CMDSUB_RE.captures_iter(&string.clone()) {

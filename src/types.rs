@@ -17,6 +17,7 @@ use crate::expansion::{
     expand_variables,
     expand_tilde,
     substitute_commands,
+    index_into,
 };
 use crate::prompt::{
     BOLD,
@@ -494,7 +495,25 @@ impl Cmd {
             Quote::NQuote => {
                 expand_variables(shell, &mut cmd.cmd.1);
                 expand_tilde(shell, &mut cmd.cmd.1);
-                newargs.push(cmd.cmd.1.clone());
+                if cmd.cmd.1.starts_with("@") {
+                    if cmd.cmd.1.contains("[") && cmd.cmd.1.ends_with("]") {
+                        cmd.cmd.1 = index_into(shell, &cmd.cmd.1)?.to_string();
+                        newargs.push(cmd.cmd.1.clone());
+                    } else if let Some(var) = shell.get_variable(&cmd.cmd.1[1..]) {
+                        if let Variable::Arr(arr) = var {
+                            cmd.cmd.1 = arr[0].to_string();
+                            newargs.extend(arr.into_iter().map(|elem| {
+                                elem.to_string()
+                            }).collect::<Vec<String>>());
+                        } else {
+                            return Err(ShellError::from("oyster: variable is not a array"))
+                        }
+                    } else {
+                        return Err(ShellError::from("error: variable not found"))
+                    }
+                } else {
+                    newargs.push(cmd.cmd.1.clone());
+                }
             }
             Quote::DQuote => {
                 expand_variables(shell, &mut cmd.cmd.1);
@@ -569,7 +588,10 @@ impl Cmd {
                     expand_variables(shell, &mut string);
                     expand_tilde(shell, &mut string);
                     if string.starts_with("@") {
-                        if let Some(var) = shell.get_variable(&string[1..]) {
+                        if string.contains("[") && string.ends_with("]") {
+                            newargs.push(index_into(shell, &string)?.to_string());
+                            continue;
+                        } else if let Some(var) = shell.get_variable(&string[1..]) {
                             if let Variable::Arr(arr) = var {
                                 newargs.extend(arr.into_iter().map(|elem| {
                                     elem.to_string()
@@ -579,7 +601,7 @@ impl Cmd {
                                 return Err(ShellError::from("oyster: variable is not a array"))
                             }
                         } else {
-                            //???
+                            return Err(ShellError::from("error: variable not found"))
                         }
                     }
                 }
@@ -596,12 +618,17 @@ impl Cmd {
                 }
                 Quote::CmdSub => {
                     match substitute_commands(shell, &string) {
-                        Ok(string) => {
-                            let strings: Vec<String> = string.
-                            split_whitespace().map(|s| s.to_string())
-                            .collect();
-                            newargs.extend(strings);
-                            continue;
+                        Ok(newstring) => {
+                            if string.starts_with("$") {
+                                newargs.push(newstring);
+                                continue;
+                            } else if string.starts_with("@") {
+                                let strings: Vec<String> = newstring.
+                                split_whitespace().map(|s| s.to_string())
+                                .collect();
+                                newargs.extend(strings);
+                                continue;
+                            }
                         }
                         Err(e) => {
                             return Err(e.into());
