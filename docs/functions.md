@@ -150,7 +150,7 @@ $ let hello = "howdy pardner"
 $ echo $hello
 howdy pardner
 ```
-Unlike other POSIX shells, Oyster has additional support for arrays. They can be expanded using either `$` or `@`. `$` expansion expands the array to a single string, with each element separated by a space. `@` expands the array to a list of strings that can be iterated over.
+Unlike POSIX shells, Oyster has additional support for arrays. They can be expanded using either `$` or `@`. `$` expansion expands the array to a single string, with each element separated by a space. `@` expands the array to a list of strings that can be iterated over.
 
 ```
 $ for word in $greet
@@ -172,7 +172,7 @@ pines
 ```
 This syntax was inspired by the Ion shell.
 
-You can also use `@` to index into arrays. If a word starts with `@` and ends with `]`, it is automatically treated as an array index.
+You can also use `@` to index into arrays. If a word starts with `@`, ends with `]`, and contains `[` somewhere in the word, it is automatically treated as an array index. This can also be used in square bracket operations.
 ```
 $ echo @greet[0]
 hello

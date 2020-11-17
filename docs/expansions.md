@@ -39,9 +39,9 @@ $ let hello = "howdy pardner"
 $ echo $hello
 howdy pardner
 ```
-The shell can detect variables in the middle of words. It reads from the `$` all the way up to the next character that is not alphanumeric, and treats that as the name of the variable.
+The shell can detect variables in the middle of words. It reads from the `$` all the way up to the next character that is not alphanumeric, and treats that as the name of the variable. If `$` is used on an array, it is expanded to a single string containing each of its elements, separated by a space.
 
-Arrays can also be expanded to a list of strings using the `@` notation. However, this cannot be detected in the middle of a word; a word has to start with it for it to be detected.
+Arrays can also be expanded to a list of strings using the `@` notation. However, this cannot be detected in the middle of a word; a word has to be unquoted and start with `@` for it to be detected. To expand arrays inside quotes, use `$` notation, since quoted words cannot expand to lists of strings anyway.
 
 After variables are expanded, they are automatically treated as a string by the shell. To operate on variables as their native type, the operation needs to be enclosed in a square bracket. See below.
 
@@ -111,7 +111,7 @@ Currently, there are 4 operations that can be performed on variables: Add, Subtr
 $ echo ["hello" - "llo"]
 oyster: operators other than `+` are not supported for strings
 ```
-Arrays cannot be operated on in any way, the shell will throw an error if attempting to do so.
+Arrays cannot be operated on in any way, the shell will throw an error if attempting to do so. However, you can index into arrays and operate on that variable. See [variables](functions.md#Variables) for more information.
 
 Operate-and-assign operators exist in the source code, but they only currently return a "not supported" error. They will likely be implemented as part of the `let` command.
 
