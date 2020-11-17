@@ -39,6 +39,10 @@ $ let hello = "howdy pardner"
 $ echo $hello
 howdy pardner
 ```
+The shell can detect variables in the middle of words. It reads from the `$` all the way up to the next character that is not alphanumeric, and treats that as the name of the variable.
+
+Arrays can also be expanded to a list of strings using the `@` notation. However, this cannot be detected in the middle of a word; a word has to start with it for it to be detected.
+
 After variables are expanded, they are automatically treated as a string by the shell. To operate on variables as their native type, the operation needs to be enclosed in a square bracket. See below.
 
 See [Functions and Variables](functions.md) for more information on variables.
@@ -185,7 +189,7 @@ $ echo 1{2,{3,4},5}6
 126 136 146 156
 ```
 
-Braces can also be expanded into ranges. If a brace has no prefix or suffix, and contains the substring `..`, it is automatically treated as a range to expanded.
+Braces can also be expanded into ranges. If a brace has no prefix or suffix, and contains the substring `..`, it is automatically treated as a range to be expanded.
 
 Ranges expand to an array of numbers in the same fashion as square bracket ranges:
 

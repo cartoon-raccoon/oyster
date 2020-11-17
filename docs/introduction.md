@@ -1,17 +1,19 @@
 ## Introduction
 Welcome to Oyster, the UNIX shell that tries to keep it simple.
 
-Oyster was named after the oyster, which has a shell, and also because of the saying "The world is your oyster."
+Oyster was named after the oyster, which has a shell, and also because of the saying "The world is your oyster." Like the saying, Oyster attempts to expose an interface that is pleasant and simple to use, while also empowering people to be ever more productive with while using the terminal.
 
 Oyster is written in Rust, a systems programming language that provides memory safety, and compiles to native machine code.
 
 Oyster is mostly a small side project that I work on in my spare time, and has a fraction of the features boasted by other more complex shells like bash, zsh or fish. However, the roadmap for this shell is clear (see notes) and I plan to implement all of them and more as time passes.
 
-Oyster is not POSIX compliant. It has relatively few features compared to the POSIX shells like bash or zsh, and simplifies to features that in POSIX shells some might confusing to use. It aims to be easy and simple to use, and to this end heavily draws inspiration from Ion (the Redox OS shell) and some ideas from the fish shell. However, the base syntax (pipes and redirections, etc) are identical to the POSIX shells.
+Oyster is not POSIX compliant. It has relatively few features compared to the POSIX shells like bash or zsh, and tries to simplify features that in POSIX shells some might find confusing to understand or use. It aims to be easy and simple to use with a focus on interactivity, and to this end heavily draws inspiration from Ion (the Redox OS shell) and some ideas from the fish shell. However, the base syntax (pipes and redirections, etc) are identical to the POSIX shells.
 
 ### On This Page
 - Definitions
 - Startup Sequence
+- POSIX Compliance
+- OS Compatibility
 
 ### Contents
 1. [Command Execution](commands.md)

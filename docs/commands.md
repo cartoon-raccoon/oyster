@@ -16,7 +16,7 @@ hello
 
 2. Parsing
 
-This is where the shell interprets the token stream outputted by the tokenizer, breaking the stream into jobs and commands, interpreting metacharacters, constructing the required data structures that encode such information. Brace and glob expansion occur here.
+This is where the shell interprets the token stream outputted by the tokenizer, breaking the stream into jobs and commands, interpreting metacharacters, constructing the required data structures that encode such information. Glob expansion occurs here.
 
 Similarly to quote detection in tokenization, the parser can detect scripting constructs and functions, and will continue to wait for more input until it detects the scripting construct is complete. It indicates this status with the `<construct> >` prompt:
 ```
@@ -110,11 +110,15 @@ Oyster supports backtick and POSIX-style command substitution:
 $ echo "hello my name is $(echo sam) and the time now is `date`"
 hello my name is sam and the time now is Sun 08 Nov 2020 02:10:46 PM +08
 ```
-Backtick substitution is mostly more appropriate for inline substitutions. With POSIX-style substitutions, no variables are expanded and the entire enclosed string is treated as is. Backtick substitutions perform variable expansion.
+As well as another style of substitution: `@` substitution, inspired by the Ion shell.
 
-When the shell detects a command substitution, it executes the enclosed command separately, with stdout piped back into it for collection. It replaces the substitution with a list of strings comprising the stdout of the command, split by whitespace. This allows substitution to be used as a loop-over in for loops, as well as being used to expand to arguments for commands, e.g. `pacman -Rs $(pacman -Qqtd)`.
+Backquote substitution is mostly more appropriate for inline substitutions. With POSIX-style and `@`-style substitutions, no variables are expanded and the entire enclosed string is treated as is. Backtick substitutions perform variable expansion.
 
-If the substitution occurs in double quotes, the output is not split and is replaced in the quote as is.
+When the shell detects a command substitution, it executes the enclosed command separately, with stdout piped back into it for collection. If it is a `@` substitution, it is replaced with a list of strings, which is the stdout split by whitespace. This allows substitution to be used as an iterable in for loops, as well as being used to expand to arguments for commands, e.g. `pacman -Rs @(pacman -Qqtd)`. Backquote substitution also splits by whitespace. POSIX-style `$` subsitution does not. 
+
+`@` style substitution allows users to be more explicit about whether they want whitespace splitting to occur, instead of having to enclose their substitution inside quotes. Oyster still does support it however:
+
+If the substitution occurs inside double quotes, the output is not split and is replaced in the quote as is.
 
 If the substitution contains invalid syntax, the parser returns an error and the substitution is aborted.
 ```

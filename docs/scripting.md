@@ -157,7 +157,7 @@ but more complex iterables such as braces and globs can be used here.
 For loops can be something as crazy as:
 ```
 $ let arr name = [dipper,pines] #declaring an array
-$ for i in hello $(echo my name is) @name and [3..=1] "i blew up the mystery shack"
+$ for i in hello @(echo my name is) @name and [3..=1] "i blew up the mystery shack"
 for > echo $i
 for > done
 
