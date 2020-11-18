@@ -6,4 +6,19 @@ func thing
     echo $2
 endfn
 
-thing()
+#thing()
+
+func factorial 1
+    if [$factorial0 <= 1]
+        echo 1
+    else
+        let int temp = 1
+        for i in [$factorial0..=1]
+            let int temp = [$temp * $i]
+        done
+        echo $temp
+    end
+endfn
+
+factorial() $0
+factorial() $1
