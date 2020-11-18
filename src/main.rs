@@ -8,6 +8,7 @@ mod prompt;
 mod builtins;
 mod scripting;
 mod expansion;
+mod completion;
 
 #[macro_use]
 extern crate lazy_static;
@@ -15,6 +16,7 @@ extern crate lazy_static;
 use std::error::Error;
 use std::env;
 use std::process;
+use std::sync::Arc;
 
 use nix::sys::signal::{signal, Signal, SigHandler,};
 use linefeed::{
@@ -28,6 +30,7 @@ use types::{
     TokenizeResult,
     ParseResult,
 };
+use completion::OshComplete;
 use execute::*;
 use shell::Shell;
 use scripting::execute_scriptfile;
@@ -40,7 +43,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         signal(Signal::SIGCHLD, SigHandler::Handler(sigchld_handler))?;
     }
 
-    let lr = Interface::new("oyster")?;
     let mut shell = Shell::with_config("testconfig");
     let mut last_status: i32 = 0;
 
@@ -70,6 +72,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             process::exit(status)
         }
     }
+    let lr = Interface::new("oyster")?;
+    lr.set_completer(Arc::new(OshComplete{}));
     
     loop {
         jobc::try_wait_bg_jobs(&mut shell);
