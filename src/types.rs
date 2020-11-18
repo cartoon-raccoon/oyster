@@ -144,6 +144,7 @@ pub enum ParseError {
     FuncInShellConst,
     InvalidGlob,
     GlobError(String),
+    CmdSubError,
     ConversionError,
     GenericError(String),
     EmptyCommand,
@@ -187,6 +188,9 @@ impl fmt::Display for ParseError {
             ParseError::GlobError(error) => {
                 write!(f, "oyster: {}", error)
             }
+            ParseError::CmdSubError => {
+                write!(f, "oyster: error in command substitution")
+            }
             ParseError::ConversionError => {
                 write!(f, "oyster: os string conversion error")
             }
@@ -209,6 +213,12 @@ impl From<PatternError> for ParseError {
 impl From<GlobError> for ParseError {
     fn from(error: GlobError) -> Self {
         ParseError::GlobError(error.to_string())
+    }
+}
+
+impl From<CmdSubError> for ParseError {
+    fn from(_error: CmdSubError) -> Self {
+        ParseError::CmdSubError
     }
 }
 

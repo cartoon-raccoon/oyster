@@ -22,6 +22,7 @@ use crate::expansion::{
     expand_tilde,
     expand_braces,
     expand_range,
+    index_into,
 };
 use crate::execute::{
     execute_jobs,
@@ -182,6 +183,8 @@ impl Construct {
                             } else {
                                 return Err(ShellError::from("oyster: variable is not an array"))
                             }
+                        } else if word.1.ends_with("]") && word.1.contains("[") {
+                            iterable.push(index_into(shell, &word.1)?.to_string());
                         } else {
                             return Err(ShellError::from("oyster: variable not found"))
                         }
@@ -197,6 +200,7 @@ impl Construct {
                         //TODO
                         iterable.push(word.1.clone())
                     } else {
+                        expand_variables(shell, &mut word.1);
                         expand_tilde(shell, &mut word.1);
                         iterable.push(word.1.clone())
                     }

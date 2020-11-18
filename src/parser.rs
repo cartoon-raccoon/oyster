@@ -16,6 +16,7 @@ use crate::expansion::{
     expand_glob,
     expand_tilde,
     replace_aliases,
+    substitute_commands,
 };
 
 pub struct Lexer;
@@ -610,12 +611,28 @@ impl Lexer {
                         }
                         Token::DQuote(mut dest) => {
                             expand_variables(shell, &mut dest);
+                            let dest = substitute_commands(shell, &dest)?;
                             redirect[2] = dest;
                             redirects.push(redirect.clone());
                             rd_to_filename = false;
                             continue;
                         }
                         Token::SQuote(dest) => {
+                            redirect[2] = dest;
+                            redirects.push(redirect.clone());
+                            rd_to_filename = false;
+                            continue;
+                        }
+                        Token::CmdSub(cmd) => {
+                            let dest = substitute_commands(shell, &cmd)?;
+                            redirect[2] = dest;
+                            redirects.push(redirect.clone());
+                            rd_to_filename = false;
+                            continue;
+                        }
+                        Token::BQuote(mut cmd) => {
+                            expand_variables(shell, &mut cmd);
+                            let dest = substitute_commands(shell, &cmd)?;
                             redirect[2] = dest;
                             redirects.push(redirect.clone());
                             rd_to_filename = false;
@@ -663,6 +680,7 @@ impl Lexer {
                         }
                         Token::DQuote(mut dest) => {
                             expand_variables(shell, &mut dest);
+                            let dest = substitute_commands(shell, &dest)?;
                             redirects.push([String::from("1"), 
                                             String::from(">"), 
                                             String::from(dest.clone())]);
@@ -691,7 +709,7 @@ impl Lexer {
                         Token::Word(mut dest) => {
                             expand_variables(shell, &mut dest);
                             expand_tilde(shell, &mut dest);
-                            redirects.push([String::from(dest.clone()), 
+                            redirects.push([String::from(dest), 
                                             String::from("<"), 
                                             String::from("0")]);
                             rd_from_stdin = false;
@@ -699,14 +717,15 @@ impl Lexer {
                         }
                         Token::DQuote(mut dest) => {
                             expand_variables(shell, &mut dest);
-                            redirects.push([String::from(dest.clone()), 
+                            let dest = substitute_commands(shell, &dest)?;
+                            redirects.push([String::from(dest), 
                                             String::from("<"), 
                                             String::from("0")]);
                             rd_from_stdin = false;
                             continue;
                         }
                         Token::SQuote(dest) => {
-                            redirects.push([String::from(dest.clone()), 
+                            redirects.push([String::from(dest), 
                                             String::from("<"), 
                                             String::from("0")]);
                             rd_from_stdin = false;
