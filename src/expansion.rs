@@ -288,11 +288,21 @@ pub fn expand_range(shell: &mut Shell, brkt: &str) -> Result<Vec<String>, ShellE
 
 pub fn expand_variables(shell: &Shell, string: &mut String) {
     lazy_static! {
-        static ref RE: Regex = Regex::new(r"\$[a-zA-Z0-9_]+").unwrap();
+        static ref RE_VAR: Regex = Regex::new(r"\$[a-zA-Z0-9_]+").unwrap();
+        static ref RE_ARR: Regex = Regex::new(r"@[a-zA-Z0-9_]+\[[0-9]+\]").unwrap();
     }
-    for capture in RE.captures_iter(&string.clone()) {
+    for capture in RE_VAR.captures_iter(&string.clone()) {
         if let Some(capture) = capture.get(0) {
             if let Some(var) = shell.get_variable(&capture.as_str()[1..]) {
+                *string = string.replacen(capture.as_str(), &var.to_string(), 1);
+            } else {
+                *string = string.replacen(capture.as_str(), "", 1);
+            }
+        }
+    }
+    for capture in RE_ARR.captures_iter(&string.clone()) {
+        if let Some(capture) = capture.get(0) {
+            if let Ok(var) = index_into(shell, &capture.as_str()) {
                 *string = string.replacen(capture.as_str(), &var.to_string(), 1);
             } else {
                 *string = string.replacen(capture.as_str(), "", 1);
