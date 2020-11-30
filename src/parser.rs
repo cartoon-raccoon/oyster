@@ -444,10 +444,10 @@ impl Lexer {
             prev_char = Some(c)
         }
         if brace_level > 0 || has_brace {
-            tokenvec.push(Token::Brace(word));
+            tokenvec.push(Token::Brace(word.clone()));
         } else {
             if !word.is_empty() {
-                tokenvec.push(Token::Word(word));
+                tokenvec.push(Token::Word(word.clone()));
             }
         }
 
@@ -477,9 +477,9 @@ impl Lexer {
         } else if in_sqbrkt {
             return Ok(TokenizeResult::UnmatchedSqBrkt);
         } else if in_squote {
-            return Ok(TokenizeResult::UnmatchedSQuote); 
+            return Ok(TokenizeResult::UnmatchedSQuote(word)); 
         } else if in_dquote {
-            return Ok(TokenizeResult::UnmatchedDQuote);
+            return Ok(TokenizeResult::UnmatchedDQuote(word));
         } else {
             match tokenvec.last() {
                 Some(token) => {

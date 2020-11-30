@@ -438,7 +438,11 @@ fn execute_commands_once(shell: &mut Shell, input: &str)
 -> Result<String, CmdSubError> {
     if let Ok(result) = Lexer::tokenize(input) {
         match result {
-            UnmatchedDQuote | UnmatchedSQuote | UnmatchedBQuote => {
+            UnmatchedBQuote => {
+                eprintln!("error: unmatched quote");
+                return Err(CmdSubError);
+            }
+            UnmatchedDQuote(_) | UnmatchedSQuote(_) => {
                 eprintln!("error: unmatched quote");
                 return Err(CmdSubError);
             }

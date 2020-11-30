@@ -28,8 +28,8 @@ pub const STOPPED: i32 = 127;
 
 /// The state of the tokenizer after parsing the current input
 pub enum TokenizeResult {
-    UnmatchedDQuote,
-    UnmatchedSQuote,
+    UnmatchedDQuote(String),
+    UnmatchedSQuote(String),
     UnmatchedBQuote,
     UnmatchedCmdSub,
     UnmatchedSqBrkt,
@@ -43,10 +43,10 @@ pub enum TokenizeResult {
 impl fmt::Display for TokenizeResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TokenizeResult::UnmatchedDQuote => {
+            TokenizeResult::UnmatchedDQuote(_) => {
                 write!(f, "{}dquote > {}", BOLD, RESET)
             }
-            TokenizeResult::UnmatchedSQuote => {
+            TokenizeResult::UnmatchedSQuote(_) => {
                 write!(f, "{}quote > {}", BOLD, RESET )
             }
             TokenizeResult::UnmatchedBQuote => {

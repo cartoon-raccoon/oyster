@@ -40,18 +40,24 @@ impl<Term: Terminal> Completer<Term> for OshComplete {
                     TokenizeResult::UnmatchedBQuote => {
                         return None
                     }
+                    TokenizeResult::UnmatchedSQuote(s) |
+                    TokenizeResult::UnmatchedDQuote(s) => {
+                        return Some(complete_path(&s, true))
+                    }
                     _ => {}
                 }
             }
             Err(_) => return None
         }
-        if start == 0 {
-            if word.starts_with("~") || word.contains("/") {
-                return Some(complete_path(word))
-            } 
+
+        if word.starts_with("~") || word.contains("/") {
+            return Some(complete_path(word, false))
+        } else if word.starts_with("$") {
+            return Some(complete_env(word))
+        } else if start == 0 {
             return Some(complete_bin(word))
         } else {
-            return Some(complete_path(word))
+            return Some(complete_path(word, false))
         }
     }
 }
@@ -96,6 +102,10 @@ fn complete_bin(command: &str) -> Vec<Completion> {
     res
 }
 
-fn complete_path(_path: &str) -> Vec<Completion> {
+fn complete_path(_path: &str, _quote: bool) -> Vec<Completion> {
+    unimplemented!()
+}
+
+fn complete_env(_env: &str) -> Vec<Completion> {
     unimplemented!()
 }
