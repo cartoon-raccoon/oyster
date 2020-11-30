@@ -9,6 +9,9 @@ use linefeed::complete::{
 use linefeed::terminal::Terminal;
 use linefeed::prompter::Prompter;
 
+use crate::parser::Lexer;
+use crate::types::TokenizeResult;
+
 // First implementation of the completer.
 // It does nothing as of yet, but it should work soon.
 pub struct OshComplete {
@@ -19,18 +22,41 @@ impl<Term: Terminal> Completer<Term> for OshComplete {
     fn complete(
         &self,
         word: &str,
-        _prompter: &Prompter<Term>,
+        prompter: &Prompter<Term>,
         start: usize,
         _end: usize,
     ) -> Option<Vec<Completion>> {
-        if start == 0 {
-            return Some(find_match_in_path(word))
+
+        match Lexer::tokenize(prompter.buffer()) {
+            Ok(res) => {
+                match res {
+                    TokenizeResult::EndsOnAnd |
+                    TokenizeResult::EndsOnOr |
+                    TokenizeResult::EndsOnPipe => {
+                        return Some(complete_bin(word))
+                    }
+                    TokenizeResult::UnmatchedCmdSub |
+                    TokenizeResult::UnmatchedSqBrkt |
+                    TokenizeResult::UnmatchedBQuote => {
+                        return None
+                    }
+                    _ => {}
+                }
+            }
+            Err(_) => return None
         }
-        Some(Vec::new())
+        if start == 0 {
+            if word.starts_with("~") || word.contains("/") {
+                return Some(complete_path(word))
+            } 
+            return Some(complete_bin(word))
+        } else {
+            return Some(complete_path(word))
+        }
     }
 }
 
-fn find_match_in_path(command: &str) -> Vec<Completion> {
+fn complete_bin(command: &str) -> Vec<Completion> {
     let mut res = Vec::new();
     let paths: Vec<PathBuf> = env::var("PATH")
         .unwrap_or(String::new())
@@ -68,4 +94,8 @@ fn find_match_in_path(command: &str) -> Vec<Completion> {
         }
     }
     res
+}
+
+fn complete_path(_path: &str) -> Vec<Completion> {
+    unimplemented!()
 }
