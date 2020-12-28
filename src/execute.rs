@@ -305,6 +305,11 @@ fn execute_func(shell: &mut Shell, job: Job) -> Result<(i32, String), ShellError
                     expand_tilde(shell, &mut string);
                     func_args.push(string);
                 }
+                Quote::Variable => {
+                    if let Some(var) = shell.get_variable(&string[1..]) {
+                        func_args.push(var.to_string());
+                    }
+                }
                 Quote::DQuote => {
                     expand_variables(shell, &mut string);
                     string = substitute_commands(shell, &string)?;

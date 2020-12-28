@@ -312,6 +312,7 @@ impl fmt::Display for ShellError {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Word(String),
+    Variable(String),
     SQuote(String),
     DQuote(String),
     BQuote(String),
@@ -339,6 +340,9 @@ impl fmt::Display for Token {
         match self {
             Word(string) => {
                 write!(f, "{}", string)
+            }
+            Variable(string) => {
+                write!(f, "${}", string)
             }
             SQuote(string) => {
                 write!(f, "{}", string)
@@ -424,6 +428,7 @@ impl Redirect {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Quote {
     NQuote,
+    Variable,
     DQuote,
     SQuote,
     BQuote,
@@ -454,6 +459,9 @@ impl fmt::Display for TokenCmd {
             match quote {
                 Quote::NQuote => {
                     return format!("{}", string);
+                }
+                Quote::Variable => {
+                    return format!("${}", string);
                 }
                 Quote::BQuote => {
                     return format!("{}", string);
@@ -523,6 +531,13 @@ impl Cmd {
                     }
                 } else {
                     newargs.push(cmd.cmd.1.clone());
+                }
+            }
+            Quote::Variable => {
+                if let Some(var) = shell.get_variable(&cmd.cmd.1[1..]) {
+                    cmd.cmd.1 = var.to_string();
+                } else {
+                    cmd.cmd.1 = "".to_string();
                 }
             }
             Quote::DQuote => {
@@ -613,6 +628,11 @@ impl Cmd {
                         } else {
                             return Err(ShellError::from("error: variable not found"))
                         }
+                    }
+                }
+                Quote::Variable => {
+                    if let Some(var) = shell.get_variable(&cmd.cmd.1[1..]) {
+                        newargs.push(var.to_string());
                     }
                 }
                 Quote::DQuote => {
