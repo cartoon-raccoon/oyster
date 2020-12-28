@@ -1,3 +1,6 @@
+use std::iter::Peekable;
+use std::str::Chars;
+
 use crate::types::{
     Redirect,
     Exec,
@@ -24,6 +27,8 @@ pub struct Lexer;
 impl Lexer {
 
     /// Tokenizes the &str into a Vec of tokens
+    /// 
+    /// This is a very badly implemented FSM.
     pub fn tokenize(line: &str) 
     -> Result<TokenizeResult, ParseError> {
         //println!("{:?}", line);
@@ -827,6 +832,9 @@ impl Lexer {
                         }
                         buffer.push((Quote::NQuote, string));
                     }
+                    Token::Variable(string) => {
+                        buffer.push((Quote::Variable, string));
+                    }
                     Token::DQuote(string) => {
                         buffer.push((Quote::DQuote, string));
                     }
@@ -954,5 +962,185 @@ impl Lexer {
             // safe to unwrap because the stack is not empty
             return Ok(stack.pop().unwrap())
         }
+    }
+}
+
+// building a better tokenizer
+// the parser is fine as is rn
+
+pub struct LexerNew<'a> {
+    inner: Peekable<Chars<'a>>,
+}
+
+impl<'a> LexerNew<'a> {
+    pub fn new() -> Self {
+        Self {
+            inner: "".chars().peekable(),
+        }
+    }
+
+    pub fn tokenize(&mut self, cmd: &'a str) -> TokenizeResult {
+        self.inner = cmd.chars().peekable();
+
+        let mut tokens = Vec::<Token>::new();
+        let mut buffer = String::new();
+        let mut prev_char = None;
+
+        while let Some(c) = self.inner.next() {
+            match c {
+                '|' if self.inner.peek() == Some(&'|') => {
+                    tokens.push(Token::Or);
+                    self.inner.next();
+                }
+                '|' if self.inner.peek() == Some(&'&') => {
+                    tokens.push(Token::Pipe2);
+                    self.inner.next();
+                }
+                '|' => {
+                    tokens.push(Token::Pipe);
+                }
+                '&' if self.inner.peek() == Some(&'&') => {
+                    tokens.push(Token::And);
+                    self.inner.next();
+                }
+                '&' if self.inner.peek() == Some(&'>') => {
+                    tokens.push(Token::RDStdOutErr);
+                    self.inner.next();
+                }
+                '&' => {
+                    tokens.push(Token::Background);
+                }
+                '>' if self.inner.peek() == Some(&'>') => {
+                    tokens.push(Token::RDAppend);
+                    self.inner.next();
+                }
+                '>' if self.inner.peek() == Some(&'&') => {
+                    tokens.push(Token::RDFileDesc);
+                    self.inner.next();
+                }
+                '>' => {
+                    tokens.push(Token::Redirect);
+                }
+                '"' => {
+                    match self.consume_bquote() {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
+                    }
+                }
+                '\'' => {
+                    match self.consume_squote() {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
+                    }
+                }
+                '`' => {
+                    match self.consume_bquote() {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
+                    }
+                }
+                '[' => {
+
+                }
+                ' ' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                }
+                '\\' => {
+                    if let Some(c) = self.inner.next() {
+                        buffer.push(c);
+                    }
+                }
+                n @ '@' | n @ '$' if self.inner.peek() == Some(&'(') => {
+                    match self.consume_cmdsub(n) {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
+                    }
+                }
+                '$' if self.inner.peek() == Some(&'{') => {
+                    // consume nmspce
+                }
+
+                // todo: match this for arrays as well
+                '$' => {
+                    match self.consume_variable() {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
+                    }
+                }
+                _ => { buffer.push(c); }
+            }
+            prev_char = Some(c);
+        }
+        unimplemented!()
+    }
+
+    fn consume_dquote(&mut self) -> Result<Token, TokenizeResult> {
+        unimplemented!()
+    }
+
+    fn consume_squote(&mut self) -> Result<Token, TokenizeResult> {
+        unimplemented!()
+    }
+
+    fn consume_bquote(&mut self) -> Result<Token, TokenizeResult> {
+        unimplemented!()
+    }
+
+    fn consume_variable(&mut self) -> Result<Token, TokenizeResult> {
+        let mut buf = String::from("$");
+        return Ok(Token::Variable(buf))
+    }
+
+    fn consume_cmdsub(&mut self, prefix: char) -> Result<Token, TokenizeResult> {
+        let mut buf = format!("{}(", prefix);
+        let mut nesting_level = 0;
+        loop {
+            let c = self.inner.next();
+            if let Some(c) = c {
+                if c == '@' || c == '$' && self.inner.peek() == Some(&'(') {
+                    nesting_level += 1;
+                } else if c == ')' {
+                    if nesting_level > 0 {
+                        nesting_level -= 1;
+                    } 
+                }
+                buf.push(c);
+            } else {
+                return Err(TokenizeResult::UnmatchedCmdSub)
+            }
+            if nesting_level <= 0 {
+                break
+            }
+        }
+        return Ok(Token::CmdSub(buf))
+    }
+
+    fn consume_brace(&mut self, buf: &mut String) {
+
+    }
+
+    fn consume_sqbrkt(&mut self) -> Result<Token, TokenizeResult> {
+        let mut buf = String::from("[");
+        let mut nesting_level = 0;
+        loop {
+            let c = self.inner.next();
+            if let Some(c) = c {
+                if c == ']' {
+                    nesting_level += 1;
+                } else if c == ']' {
+                    if nesting_level > 0 {
+                        nesting_level -= 1;
+                    }
+                    if nesting_level <= 0 {
+                        buf.push(']');
+                        break
+                    }
+                }
+            } else {
+                return Err(TokenizeResult::UnmatchedSqBrkt)
+            }
+            
+        }
+        return Ok(Token::SqBrkt(buf))
     }
 }
