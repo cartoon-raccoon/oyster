@@ -1021,6 +1021,9 @@ impl<'a> LexerNew<'a> {
                 '>' => {
                     tokens.push(Token::Redirect);
                 }
+                ';' | '\n' => {
+                    tokens.push(Token::Consec);
+                }
                 '"' => {
                     match self.consume_bquote() {
                         Ok(tk) => tokens.push(tk),
@@ -1040,7 +1043,10 @@ impl<'a> LexerNew<'a> {
                     }
                 }
                 '[' => {
-
+                    match self.consume_sqbrkt() {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
+                    }
                 }
                 ' ' => {
                     tokens.push(Token::Word(buffer.clone()));
@@ -1071,24 +1077,99 @@ impl<'a> LexerNew<'a> {
             }
             prev_char = Some(c);
         }
-        unimplemented!()
+
+        //filtering empty words
+        let mut tokens: Vec<Token> = tokens.into_iter()
+            .filter(|token| {
+                if let Token::Word(word) = token {
+                    return !word.is_empty()
+                } else if let Token::Brace(word) = token {
+                    return !word.is_empty()
+                }
+                true
+            }).collect();
+        
+        if let Some(token) = tokens.pop() {
+            if token != Token::Consec {
+                tokens.push(token);
+            }
+        }
+        
+        match tokens.last() {
+            Some(&Token::Pipe) | Some(&Token::Pipe2) => {
+                return TokenizeResult::EndsOnPipe
+            }
+            Some(&Token::And) => {
+                return TokenizeResult::EndsOnAnd
+            }
+            Some(&Token::Or) => {
+                return TokenizeResult::EndsOnOr
+            }
+            Some(_) => {
+                return TokenizeResult::Good(tokens)
+            }
+            None => {
+                return TokenizeResult::EmptyCommand
+            }
+        }
     }
 
     fn consume_dquote(&mut self) -> Result<Token, TokenizeResult> {
-        unimplemented!()
+        let mut buf = String::new();
+        loop {
+            if let Some(c) = self.inner.next() {
+                if c == '\\' {
+                    if let Some(c) = self.inner.next() {
+                        buf.push(c);
+                        continue
+                    }
+                } else if c == '"' {
+                    break
+                } else {
+                    buf.push(c);
+                }
+            } else {
+                return Err(TokenizeResult::UnmatchedDQuote(buf));
+            }
+        }
+        Ok(Token::DQuote(buf))
     }
 
     fn consume_squote(&mut self) -> Result<Token, TokenizeResult> {
-        unimplemented!()
+        let mut buf = String::new();
+        loop {
+            if let Some(c) = self.inner.next() {
+                if c == '\'' {
+                    break
+                } else {
+                    buf.push(c);
+                }
+            } else {
+                return Err(TokenizeResult::UnmatchedSQuote(buf));
+            }
+        }
+        Ok(Token::SQuote(buf))
     }
 
     fn consume_bquote(&mut self) -> Result<Token, TokenizeResult> {
-        unimplemented!()
-    }
-
-    fn consume_variable(&mut self) -> Result<Token, TokenizeResult> {
-        let mut buf = String::from("$");
-        return Ok(Token::Variable(buf))
+        let mut buf = String::new();
+        loop {
+            if let Some(c) = self.inner.next() {
+                if c == '\\' {
+                    if let Some(c) = self.inner.next() {
+                        buf.push(c);
+                        continue
+                    }
+                } else if c == '`' {
+                    break
+                } else {
+                    buf.push(c);
+                }
+            } else {
+                return Err(TokenizeResult::UnmatchedBQuote);
+            }
+        }
+        Ok(Token::BQuote(buf))
     }
 
     fn consume_cmdsub(&mut self, prefix: char) -> Result<Token, TokenizeResult> {
@@ -1112,7 +1193,12 @@ impl<'a> LexerNew<'a> {
                 break
             }
         }
-        return Ok(Token::CmdSub(buf))
+        Ok(Token::CmdSub(buf))
+    }
+
+    fn consume_variable(&mut self) -> Result<Token, TokenizeResult> {
+        let mut buf = String::from("$");
+        Ok(Token::Variable(buf))
     }
 
     fn consume_brace(&mut self, buf: &mut String) {
