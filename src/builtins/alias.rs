@@ -24,28 +24,23 @@ pub fn set(shell: &mut Shell, cmd: Cmd) -> i32 {
         return 1;
     }
     match Lexer::tokenize(key_value[1]) {
-        Ok(result) => {
-            if let TokenizeResult::Good(tokens) = result {
-                match Lexer::parse_tokens(shell, tokens) {
-                    Ok(_) => {
-                        shell.add_alias(key_value[0], key_value[1]);
-                        return 0;
-                    }
-                    Err(e) => {
-                        eprintln!("{}", e);
-                        eprintln!("oyster: bad assignment for `{}`", key_value[0]);
-                        return 1;
-                    }
+        TokenizeResult::Good(tokens) => {
+            match Lexer::parse_tokens(shell, tokens) {
+                Ok(_) => {
+                    shell.add_alias(key_value[0], key_value[1]);
+                    return 0;
                 }
-            } else {
-                eprintln!("oyster: bad assignment for `{}`", key_value[0]);
-                return 1;
+                Err(e) => {
+                    eprintln!("{}", e);
+                    eprintln!("oyster: bad assignment for `{}`", key_value[0]);
+                    return 1;
+                }
             }
         }
-        Err(_) => {
+        _ => {
             eprintln!("oyster: bad assignment for `{}`", key_value[0]);
             return 1;
-        }
+        }  
     } 
 }
 

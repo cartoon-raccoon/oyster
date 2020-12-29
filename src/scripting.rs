@@ -41,7 +41,7 @@ pub fn execute_scriptfile(shell: &mut Shell, filename: &str) -> Result<i32, Shel
         }
         buffer.push_str(line.trim());
         buffer.push('\n');
-        let tokens = match Lexer::tokenize(&buffer)? {
+        let tokens = match Lexer::tokenize(&buffer) {
             TokenizeResult::Good(parsedtokens) => parsedtokens,
             _ => {continue;}
         };

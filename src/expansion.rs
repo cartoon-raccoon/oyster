@@ -436,56 +436,55 @@ pub fn substitute_commands(shell: &mut Shell, string: &str) -> Result<String, Cm
 
 fn execute_commands_once(shell: &mut Shell, input: &str) 
 -> Result<String, CmdSubError> {
-    if let Ok(result) = Lexer::tokenize(input) {
-        match result {
-            UnmatchedBQuote => {
-                eprintln!("error: unmatched quote");
-                return Err(CmdSubError);
-            }
-            UnmatchedDQuote(_) | UnmatchedSQuote(_) => {
-                eprintln!("error: unmatched quote");
-                return Err(CmdSubError);
-            }
-            UnmatchedCmdSub => {
-                eprintln!("error: unmatched command substitution");
-                return Err(CmdSubError);
-            }
-            UnmatchedSqBrkt => {
-                eprintln!("error: unmatched square bracket");
-                return Err(CmdSubError);
-            }
-            EndsOnAnd | EndsOnOr | EndsOnPipe => {
-                eprintln!("error: command ends on delimiter");
-                return Err(CmdSubError);
-            }
-            EmptyCommand => {
-                eprintln!("warning: empty command");
-                return Ok(String::new());
-            }
-            Good(tokens) => {
-                // expand_variables(shell, &mut tokens);
-                if let ParseResult::Good(jobs) = Lexer::parse_tokens(shell, tokens)? {
-                    match execute::execute_jobs(shell, jobs, true) {
-                        Ok(mut jobs) => {
-                            if let Some('\n') = jobs.1.chars().last() {
-                                jobs.1.pop();
-                            }
-                            Ok(jobs.1)
+    match Lexer::tokenize(input) {
+        UnmatchedBQuote => {
+            eprintln!("error: unmatched quote");
+            return Err(CmdSubError);
+        }
+        UnmatchedDQuote(_) | UnmatchedSQuote(_) => {
+            eprintln!("error: unmatched quote");
+            return Err(CmdSubError);
+        }
+        UnmatchedCmdSub => {
+            eprintln!("error: unmatched command substitution");
+            return Err(CmdSubError);
+        }
+        UnmatchedSqBrkt => {
+            eprintln!("error: unmatched square bracket");
+            return Err(CmdSubError);
+        }
+        UnmatchedNmspce => {
+            eprintln!("error: unmatched square bracket");
+            return Err(CmdSubError);
+        }
+        EndsOnAnd | EndsOnOr | EndsOnPipe => {
+            eprintln!("error: command ends on delimiter");
+            return Err(CmdSubError);
+        }
+        EmptyCommand => {
+            eprintln!("warning: empty command");
+            return Ok(String::new());
+        }
+        Good(tokens) => {
+            // expand_variables(shell, &mut tokens);
+            if let ParseResult::Good(jobs) = Lexer::parse_tokens(shell, tokens)? {
+                match execute::execute_jobs(shell, jobs, true) {
+                    Ok(mut jobs) => {
+                        if let Some('\n') = jobs.1.chars().last() {
+                            jobs.1.pop();
                         }
-                        Err(e) => {
-                            eprintln!("error while executing: {}", e);
-                            return Err(CmdSubError);
-                        }
+                        Ok(jobs.1)
                     }
-                } else {
-                    eprintln!("error: incomplete shell struct");
-                    return Err(CmdSubError);
+                    Err(e) => {
+                        eprintln!("error while executing: {}", e);
+                        return Err(CmdSubError);
+                    }
                 }
+            } else {
+                eprintln!("error: incomplete shell struct");
+                return Err(CmdSubError);
             }
         }
-    } else {
-        eprintln!("error: tokenization error");
-        Err(CmdSubError)
     }
 }
 

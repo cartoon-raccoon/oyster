@@ -27,27 +27,22 @@ impl<Term: Terminal> Completer<Term> for OshComplete {
         _end: usize,
     ) -> Option<Vec<Completion>> {
 
-        match Lexer::tokenize(prompter.buffer()) {
-            Ok(res) => {
-                match res {
-                    TokenizeResult::EndsOnAnd |
-                    TokenizeResult::EndsOnOr |
-                    TokenizeResult::EndsOnPipe => {
-                        return Some(complete_bin(word))
-                    }
-                    TokenizeResult::UnmatchedCmdSub |
-                    TokenizeResult::UnmatchedSqBrkt |
-                    TokenizeResult::UnmatchedBQuote => {
-                        return None
-                    }
-                    TokenizeResult::UnmatchedSQuote(s) |
-                    TokenizeResult::UnmatchedDQuote(s) => {
-                        return Some(complete_path(&s, true))
-                    }
-                    _ => {}
-                }
+        match Lexer::tokenize(&mut prompter.buffer().to_string()) {
+            TokenizeResult::EndsOnAnd |
+            TokenizeResult::EndsOnOr |
+            TokenizeResult::EndsOnPipe => {
+                return Some(complete_bin(word))
             }
-            Err(_) => return None
+            TokenizeResult::UnmatchedCmdSub |
+            TokenizeResult::UnmatchedSqBrkt |
+            TokenizeResult::UnmatchedBQuote => {
+                return None
+            }
+            TokenizeResult::UnmatchedSQuote(s) |
+            TokenizeResult::UnmatchedDQuote(s) => {
+                return Some(complete_path(&s, true))
+            }
+            _ => {}
         }
 
         if word.starts_with("~") || word.contains("/") {
@@ -102,10 +97,31 @@ fn complete_bin(command: &str) -> Vec<Completion> {
     res
 }
 
-fn complete_path(_path: &str, _quote: bool) -> Vec<Completion> {
+fn complete_path(path: &str, quote: bool) -> Vec<Completion> {
+    let mut path = path.to_string();
+    expand_tilde(&mut path);
+    if quote {
+        path = path.replace(" ", "\\ ")
+    }
     unimplemented!()
 }
 
 fn complete_env(_env: &str) -> Vec<Completion> {
     unimplemented!()
+}
+
+fn expand_tilde(string: &mut String) {  
+    let home = env::var("HOME").unwrap_or(String::new());
+    if home.is_empty() { return }
+    let pwd = env::var("PWD").unwrap_or(String::new());
+    if pwd.is_empty() { return }
+    if string.starts_with("~") {
+        if string.starts_with("~+") {
+            *string = string.replacen("~+", &pwd, 1);
+        } else {
+            *string = string.replacen("~", &home, 1);
+        }
+    } else {
+        return;
+    }
 }

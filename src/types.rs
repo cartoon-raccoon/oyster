@@ -34,6 +34,7 @@ pub enum TokenizeResult {
     UnmatchedBQuote,
     UnmatchedCmdSub,
     UnmatchedSqBrkt,
+    UnmatchedNmspce,
     EndsOnOr,
     EndsOnAnd,
     EndsOnPipe,
@@ -58,6 +59,9 @@ impl fmt::Display for TokenizeResult {
             }
             TokenizeResult::UnmatchedSqBrkt => {
                 write!(f, "{}sqbrkt > {}", BOLD, RESET)
+            }
+            TokenizeResult::UnmatchedNmspce => {
+                write!(f, "{}nmspce > {}", BOLD, RESET)
             }
             TokenizeResult::EndsOnAnd => {
                 write!(f, "{}cmdand > {}", BOLD, RESET )
@@ -141,7 +145,6 @@ pub enum ParseError {
     InvalidFileRD,
     InvalidFileDesc,
     InvalidRDSyntax,
-    MetacharsInBrace,
     FuncInShellConst,
     InvalidGlob,
     GlobError(String),
@@ -177,9 +180,6 @@ impl fmt::Display for ParseError {
             ParseError::InvalidRDSyntax => {
                 write!(f, "error: invalid redirection syntax")
             },
-            ParseError::MetacharsInBrace => {
-                write!(f, "error: metacharacters in brace")
-            }
             ParseError::FuncInShellConst => {
                 write!(f, "error: cannot define function in shell construct")
             }
@@ -326,7 +326,6 @@ pub enum Token {
     And, //handled!
     Or, //handled!
     Consec, //handled!
-    FileMarker,
     Redirect,
     RDAppend,
     RDStdin,
@@ -380,9 +379,6 @@ impl fmt::Display for Token {
             }
             Consec => {
                 write!(f, ";")
-            }
-            FileMarker => {
-                write!(f, ">&")
             }
             Redirect => {
                 write!(f, ">")

@@ -22,6 +22,8 @@ use crate::expansion::{
     substitute_commands,
 };
 
+type CharsIter<'a> = Peekable<Chars<'a>>;
+
 const METACHARS: [char; 10] = ['"', '&', '|', '\'', '>', '!', ';', '[', ']', ' '];
 
 pub struct Lexer;
@@ -30,436 +32,162 @@ impl Lexer {
 
     /// Tokenizes the &str into a Vec of tokens
     /// 
-    /// This is a very badly implemented FSM.
-    pub fn tokenize(line: &str) 
-    -> Result<TokenizeResult, ParseError> {
-        //println!("{:?}", line);
+    pub fn new() -> Self {
+        Self {}
+    }
 
-        let mut line_iter = line.chars().peekable();
+    pub fn tokenize(cmd: &str) -> TokenizeResult {
+        let mut chars = cmd.chars().peekable();
+        let mut lexer = Self::new();
 
-        //Accumulators
-        let mut tokenvec = Vec::<Token>::new();
-        let mut word = String::new();
+        let mut tokens = Vec::<Token>::new();
+        let mut buffer = String::new();
 
-        //Trackers
-        //let mut in_var = false;
-        let mut in_dquote = false;
-        let mut in_squote = false;
-        let mut in_bquote = false;
-        let mut in_cmdsub = false;
-        let mut in_sqbrkt = false;
-        let mut in_nmespc = false;
-        let mut brace_level: i32 = 0;
-        let mut sbrkt_level: i32 = 0;
-        let mut has_brace = false;
-        let mut ignore_next = false;
-        let mut prev_char = None;
-
-        let push = |elements: &mut Vec<Token>, 
-                    charvec: &mut String,
-                    character: char,
-                    in_double_quotes: bool,
-                    in_single_quotes: bool,
-                    has_brace: bool,| {
-            if !in_double_quotes && !in_single_quotes {
-                if has_brace {
-                    elements.push(Token::Brace(charvec.clone()));
-                } else {
-                    if !charvec.is_empty() {
-                        elements.push(
-                            Token::Word(charvec.trim().to_string())
-                        );
-                    }
-                }
-                charvec.clear();
-            } else {
-                charvec.push(character)
-            }
-        };
-        
-        //* Phase 1: Tokenisation
-        while let Some(c) = line_iter.next() {
-            // println!("========================");
-            // println!("{:?}", prev_char);
-            // println!("{:?}", c);
-            // println!("{:?}", line_iter.peek());
-            // println!("{:?}", word);
-            // println!("{:?}", tokenvec);
-            // println!("Last item: {:?}", tokenvec.last());
-            // println!("In Dquote: {}", in_dquote);
-            // println!("In Squote: {}", in_squote);
-            // println!("Ignore:    {}", ignore_next);
-            if ignore_next {
-                ignore_next = false;
-                prev_char = Some(c);
-                continue;
-            }
+        while let Some(c) = chars.next() {
             match c {
-                '|' if line_iter.peek() == Some(&'|') 
-                    && !in_squote && !in_bquote 
-                    && !in_sqbrkt && !in_cmdsub && !in_nmespc => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if !in_dquote {
-                        tokenvec.push(Token::Or);
-                        ignore_next = true;
-                    }
-                    has_brace = false;
-                },
-                '|' if line_iter.peek() == Some(&'&') 
-                    && !in_squote && !in_bquote 
-                    && !in_sqbrkt && !in_cmdsub && !in_nmespc => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if !in_dquote {
-                        tokenvec.push(Token::Pipe2);
-                        ignore_next = true;
-                    }
-                    has_brace = false;
-                },
-                '|' if !in_squote && !in_bquote 
-                    && !in_sqbrkt && !in_cmdsub && !in_nmespc => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if !in_dquote {
-                        tokenvec.push(Token::Pipe);
-                        ignore_next = false;
-                    }
-                    has_brace = false;
-                },
-                '&' if line_iter.peek() == Some(&'&') 
-                    && !in_squote && !in_bquote 
-                    && !in_sqbrkt && !in_cmdsub && !in_nmespc => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if !in_dquote {
-                        tokenvec.push(Token::And);
-                        ignore_next = true;
-                    }
-                    has_brace = false;
-                },
-                '&' if line_iter.peek() == Some(&'>') 
-                    && !in_squote && !in_bquote 
-                    && !in_sqbrkt && !in_cmdsub && !in_nmespc => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if !in_dquote {
-                        tokenvec.push(Token::RDStdOutErr);
-                        ignore_next = true;
-                    }
-                    has_brace = false;
+                '|' if chars.peek() == Some(&'|') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::Or);
+                    chars.next();
                 }
-                '&' if !in_squote && !in_bquote 
-                    && !in_sqbrkt && !in_cmdsub && !in_nmespc  => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if !in_dquote {
-                        if prev_char == Some('>') {
-                            tokenvec.push(Token::FileMarker);
-                        } else {
-                            tokenvec.push(Token::Background);
-                        }
-                        ignore_next = false;
-                    }
-                    has_brace = false;
-                },
-                '{' if !in_dquote && !in_squote && !in_nmespc
-                    && !in_bquote && !in_sqbrkt && !in_cmdsub => {
-                    has_brace = true;
-                    brace_level += 1;
-                    word.push(c);
+                '|' if chars.peek() == Some(&'&') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::Pipe2);
+                    chars.next();
                 }
-                '}' if !in_dquote && !in_squote 
-                    && !in_bquote && !in_sqbrkt && !in_cmdsub => {
-                    if brace_level > 0 {}
-                    brace_level -= 1;
-                    word.push(c);
-                    if brace_level == 0 && !in_nmespc 
-                    && line_iter.peek() == Some(&' ') {
-                        tokenvec.push(Token::Brace(word.clone()));
-                        word.clear();
-                    } else if in_nmespc {
-                        tokenvec.push(Token::NmSpce(word.clone()));
-                        word.clear();
-                    }
+                '|' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::Pipe);
                 }
-                '[' if !in_dquote && !in_squote && !in_bquote 
-                    && !in_nmespc && !in_cmdsub => {
-                    sbrkt_level += 1;
-                    if prev_char == Some(' ') || prev_char == None {
-                        push(&mut tokenvec, &mut word, c, 
-                            in_dquote, in_squote, has_brace
-                        );
-                        sbrkt_level = 1;
-                        in_sqbrkt = true;
-                    } else {
-                        word.push(c);
-                    }
+                '&' if chars.peek() == Some(&'&') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::And);
+                    chars.next();
                 }
-                ']' if !in_squote && !in_bquote && !in_nmespc
-                    && !in_dquote &&  in_sqbrkt && !in_cmdsub => {
-                    sbrkt_level -= 1;
-                    if sbrkt_level == 0 && in_sqbrkt {
-                        tokenvec.push(Token::SqBrkt(word.clone()));
-                        word.clear();
-                        in_sqbrkt = false;
-                    } else {
-                        word.push(c);
-                    }
+                '&' if chars.peek() == Some(&'>') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::RDStdOutErr);
+                    chars.next();
                 }
-                n@ '@' | n@ '$' if line_iter.peek() == Some(&'(')
-                    && !in_squote && !in_cmdsub && !in_nmespc
-                    && !in_sqbrkt && !in_bquote => {
-                    if n == '@' {
-                        word.push_str("@(");
-                    } else if n == '$' {
-                        word.push_str("$(");
-                    }
-                    has_brace = false;
-                    ignore_next = true;
-                    if !in_dquote {
-                        in_cmdsub = true;
-                    }
+                '&' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::Background);
                 }
-                '$' if line_iter.peek() == Some(&'{')
-                    && !in_squote && !in_cmdsub && !in_dquote
-                    && !in_sqbrkt && !in_bquote && !in_nmespc => {
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if !in_nmespc {
-                        in_nmespc = true;
-                        ignore_next = true;
-                    }
+                '>' if chars.peek() == Some(&'>') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::RDAppend);
+                    chars.next();
                 }
-                ')' if !in_squote && !in_bquote && !in_nmespc
-                    && !in_sqbrkt && in_cmdsub => {
-                    word.push(')');
-                    if !in_dquote {
-                        tokenvec.push(Token::CmdSub(word.clone()));
-                        word.clear();
-                        in_cmdsub = false;
-                    }
+                '>' if chars.peek() == Some(&'&') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::RDFileDesc);
+                    chars.next();
                 }
-                '>' if line_iter.peek() == Some(&'>') 
-                    && !in_squote && !in_bquote && !in_nmespc
-                    && !in_sqbrkt && !in_cmdsub => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if !in_dquote {
-                        tokenvec.push(Token::RDAppend);
-                        ignore_next = true;
-                    }
-                    has_brace = false;
-                },
-                '>' if line_iter.peek() == Some(&'&') 
-                    && !in_squote && !in_bquote && !in_nmespc
-                    && !in_sqbrkt && !in_dquote && !in_cmdsub => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if !in_dquote {
-                        tokenvec.push(Token::RDFileDesc);
-                        ignore_next = true;
-                    }
-                    has_brace = false;
+                '>' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::Redirect);
                 }
-                '>' if line_iter.peek() != Some(&'>') 
-                    && !in_squote && !in_bquote && !in_nmespc
-                    && !in_sqbrkt && !in_dquote && !in_cmdsub => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if !in_dquote {
-                        tokenvec.push(Token::Redirect);
-                        ignore_next = false;
-                    }
-                    has_brace = false;
-                },
-                '<' if !in_squote && !in_bquote && !in_nmespc
-                    && !in_sqbrkt && !in_dquote && !in_cmdsub => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if !in_dquote {
-                        tokenvec.push(Token::RDStdin);
-                        ignore_next = false;
-                    }
-                    has_brace = false;
-                },
-                ';' if !in_squote && !in_bquote && !in_nmespc
-                    && !in_sqbrkt && !in_dquote && !in_cmdsub => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if let Some(&Token::Consec) = tokenvec.last() {
-                    } else {
-                        tokenvec.push(Token::Consec);
-                        ignore_next = false;
-                    }
-                    has_brace = false;
+                '<' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::RDStdin);
                 }
-                '\n' if !in_squote && !in_bquote && !in_nmespc
-                    && !in_sqbrkt && !in_dquote && !in_cmdsub => {
-                    if brace_level > 0 {return Err(ParseError::MetacharsInBrace)}
-                    push(&mut tokenvec, &mut word, c, 
-                        in_dquote, in_squote, has_brace
-                    );
-                    if let Some(token) = tokenvec.last()  {
-                        match token {
-                            Token::Consec |
-                            Token::FileMarker |
-                            Token::Or |
-                            Token::And |
-                            Token::Background |
-                            Token::Pipe |
-                            Token::Pipe2 => {}
-                            n@ Token::Redirect |
-                            n@ Token::RDStdin |
-                            n@ Token::RDAppend |
-                            n@ Token::RDStdOutErr |
-                            n@ Token::RDFileDesc => {
-                                return Err(ParseError::GenericError(n.to_string()))
-                            }
-                            _ => {
-                                tokenvec.push(Token::Consec);
-                                ignore_next = false;
-                            }
-                        }
-                    }
-                    has_brace = false;
+                ';' | '\n' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::Consec);
                 }
-                '`' if !in_squote && !in_sqbrkt && !in_cmdsub && !in_nmespc => {
-                    has_brace = false;
-                    word.push(c);
-                    if in_bquote {
-                        in_bquote = false;
-                        if !in_dquote {
-                            tokenvec.push(Token::BQuote(word.clone()));
-                            word.clear();
-                        }
-                    } else {
-                        in_bquote = true;
+                '"' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    match lexer.consume_dquote(&mut chars) {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
                     }
                 }
                 '\'' => {
-                    ignore_next = false;
-                    if in_squote && !in_dquote  {
-                        in_squote = false;
-                        tokenvec.push(Token::SQuote(word.clone()));
-                        word.clear();
-                    } else if in_dquote {
-                        word.push(c);
-                    } else if in_bquote || in_cmdsub {
-                        word.push(c);
-                    } else if brace_level > 0 {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    match lexer.consume_squote(&mut chars) {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
+                    }
+                }
+                '`' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    match lexer.consume_bquote(&mut chars) {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
+                    }
+                }
+                '[' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    match lexer.consume_sqbrkt(&mut chars) {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
+                    }
+                }
+                '{' => {
+                    buffer.push(c);
+                    lexer.consume_brace(&mut buffer, &mut chars);
+                    tokens.push(Token::Brace(buffer.clone()));
+                    buffer.clear();
+                }
+                ' ' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                }
+                '\\' => {
+                    if let Some(c) = chars.next() {
+                        buffer.push(c);
+                    }
+                }
+                n @ '@' | n @ '$' if chars.peek() == Some(&'(') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    match lexer.consume_cmdsub(n, &mut chars) {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
+                    }
+                }
+                '$' if chars.peek() == Some(&'{') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    match lexer.consume_nmspce(&mut chars) {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
+                    }
+                }
 
-                    } else {
-                        push(&mut tokenvec, &mut word, c, 
-                            in_dquote, in_squote, has_brace
-                        );
-                        in_squote = true;
+                // todo: match this for arrays as well
+                '$' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    match lexer.consume_variable(&mut chars) {
+                        Ok(tk) => tokens.push(tk),
+                        Err(e) => return e
                     }
                 }
-                '"' if !in_squote && !in_bquote && !in_nmespc
-                    && !in_sqbrkt && !in_cmdsub => {
-                    ignore_next = false;
-                    if in_dquote {
-                        in_dquote = false;
-                        if brace_level > 0 {
-
-                        } else {
-                            tokenvec.push(Token::DQuote(word.clone()));
-                            word.clear();
-                        }
-                    } else {
-                        push(&mut tokenvec, &mut word, c, 
-                            in_dquote, in_squote, has_brace
-                        );
-                        in_dquote = true;
-                    }
-                }
-                '\\' if !in_squote => {
-                    if in_squote {
-                        word.push(c);
-                    } else {
-                        if has_brace && brace_level != 0 {
-                            // if line_iter.peek() == Some(&'{')
-                            // || line_iter.peek() == Some(&'}') {
-                            //     word.push(c);
-                            // }
-                            word.push(c);
-                        }
-                        if let Some(ch) = line_iter.next() {
-                            word.push(ch);
-                            prev_char = Some(ch);
-                        }
-                        continue;
-                    }
-                }
-                ' ' if !in_squote && !in_bquote && !in_nmespc
-                    && !in_sqbrkt && !in_cmdsub => {
-                    ignore_next = false;
-                    if prev_char != Some(' ') {
-                        if !in_dquote {
-                            if has_brace {
-                                if !word.is_empty() {
-                                    tokenvec.push(Token::Brace(word.clone()));
-                                    has_brace = false;
-                                }
-                            } else {
-                                if !word.is_empty() {
-                                    tokenvec.push(Token::Word(word.clone())); 
-                                }
-                            }
-                            word.clear();
-                        } else {
-                        word.push(c);
-                        }
-                    }
-                }
-                '#' if !in_squote && !in_bquote && !has_brace => {
-                    if in_dquote || in_sqbrkt {
-                        word.push(c);
-                    } else {
-                        break;
-                    }
-                }
-                _ => {
-                    ignore_next = false;
-                    word.push(c);
-                }
+                _ => { buffer.push(c); }
             }
-            prev_char = Some(c)
         }
-        if brace_level > 0 || has_brace {
-            tokenvec.push(Token::Brace(word.clone()));
-        } else {
-            if !word.is_empty() {
-                tokenvec.push(Token::Word(word.clone()));
-            }
+        if !buffer.is_empty() {
+            tokens.push(Token::Word(buffer))
         }
 
         //filtering empty words
-        let mut tokenvec: Vec<Token> = tokenvec.into_iter()
+        let mut tokens: Vec<Token> = tokens.into_iter()
             .filter(|token| {
                 if let Token::Word(word) = token {
                     return !word.is_empty()
@@ -469,51 +197,181 @@ impl Lexer {
                 true
             }).collect();
         
-        if let Some(token) = tokenvec.pop() {
+        if let Some(token) = tokens.pop() {
             if token != Token::Consec {
-                tokenvec.push(token);
-            }
-        }
-    
-        //println!("{:?}", tokenvec);
-        
-        if in_bquote {
-            return Ok(TokenizeResult::UnmatchedBQuote);
-        } else if in_cmdsub {
-            return Ok(TokenizeResult::UnmatchedCmdSub);
-        } else if in_sqbrkt {
-            return Ok(TokenizeResult::UnmatchedSqBrkt);
-        } else if in_squote {
-            return Ok(TokenizeResult::UnmatchedSQuote(word)); 
-        } else if in_dquote {
-            return Ok(TokenizeResult::UnmatchedDQuote(word));
-        } else {
-            match tokenvec.last() {
-                Some(token) => {
-                    match *token {
-                        Token::Or => {
-                            return Ok(TokenizeResult::EndsOnOr);
-                        }
-                        Token::And => {
-                            return Ok(TokenizeResult::EndsOnAnd);
-                        }
-                        Token::Pipe | Token::Pipe2 => {
-                            return Ok(TokenizeResult::EndsOnPipe);
-                        }
-                        _ => {}
-                    }
-                }
-                None => {
-                    return Ok(TokenizeResult::EmptyCommand);
-                }
+                tokens.push(token);
             }
         }
 
-        if tokenvec.len() > 0 {
-            Ok(TokenizeResult::Good(tokenvec))
-        } else {
-            Ok(TokenizeResult::EmptyCommand)
+        match tokens.last() {
+            Some(&Token::Pipe) | Some(&Token::Pipe2) => {
+                return TokenizeResult::EndsOnPipe
+            }
+            Some(&Token::And) => {
+                return TokenizeResult::EndsOnAnd
+            }
+            Some(&Token::Or) => {
+                return TokenizeResult::EndsOnOr
+            }
+            Some(_) => {
+                return TokenizeResult::Good(tokens)
+            }
+            None => {
+                return TokenizeResult::EmptyCommand
+            }
         }
+    }
+
+    fn consume_dquote(&mut self, chars: &mut CharsIter) -> Result<Token, TokenizeResult> {
+        let mut buf = String::new();
+        loop {
+            if let Some(c) = chars.next() {
+                if c == '\\' {
+                    if let Some(c) = chars.next() {
+                        buf.push(c);
+                        continue
+                    }
+                } else if c == '"' {
+                    return Ok(Token::DQuote(buf))
+                } else {
+                    buf.push(c);
+                }
+            } else {
+                return Err(TokenizeResult::UnmatchedDQuote(buf));
+            }
+        }
+    }
+
+    fn consume_squote(&mut self, chars: &mut CharsIter) -> Result<Token, TokenizeResult> {
+        let mut buf = String::new();
+        loop {
+            if let Some(c) = chars.next() {
+                if c == '\'' {
+                    break
+                } else {
+                    buf.push(c);
+                }
+            } else {
+                return Err(TokenizeResult::UnmatchedSQuote(buf));
+            }
+        }
+        Ok(Token::SQuote(buf))
+    }
+
+    fn consume_bquote(&mut self, chars: &mut CharsIter) -> Result<Token, TokenizeResult> {
+        let mut buf = String::new();
+        loop {
+            if let Some(c) = chars.next() {
+                if c == '\\' {
+                    if let Some(c) = chars.next() {
+                        buf.push(c);
+                        continue
+                    }
+                } else if c == '`' {
+                    break
+                } else {
+                    buf.push(c);
+                }
+            } else {
+                return Err(TokenizeResult::UnmatchedBQuote);
+            }
+        }
+        Ok(Token::BQuote(buf))
+    }
+
+    fn consume_cmdsub(&mut self, prefix: char, chars: &mut CharsIter) -> Result<Token, TokenizeResult> {
+        let mut buf = format!("{}", prefix);
+        let mut nesting_level = 0;
+        loop {
+            if let Some(c) = chars.next() {
+                if c == '@' || c == '$' && chars.peek() == Some(&'(') {
+                    nesting_level += 1;
+                } else if c == ')' {
+                    if nesting_level > 0 {
+                        nesting_level -= 1;
+                    }
+                    if nesting_level <= 0 {
+                        buf.push(c);
+                        break
+                    }
+                }
+                buf.push(c);
+            } else {
+                return Err(TokenizeResult::UnmatchedCmdSub)
+            }
+        }
+        Ok(Token::CmdSub(buf))
+    }
+
+    fn consume_variable(&mut self, chars: &mut CharsIter) -> Result<Token, TokenizeResult> {
+        let mut buf = String::from("$");
+        loop {
+            if let Some(c) = chars.next() {
+                buf.push(c);
+                if let Some(&c) = chars.peek() {
+                    if METACHARS.contains(&c) || !c.is_alphanumeric() {
+                        break
+                    }
+                }
+            }
+        }
+        Ok(Token::Variable(buf))
+    }
+
+    fn consume_brace(&mut self, buf: &mut String, chars: &mut CharsIter) {
+        loop {
+            if let Some(c) = chars.next() {
+                buf.push(c);
+                if let Some(&c) = chars.peek() {
+                    if METACHARS.contains(&c) {
+                        return
+                    }
+                }
+            } else {
+                return
+            }
+        }
+    }
+
+    fn consume_sqbrkt(&mut self, chars: &mut CharsIter) -> Result<Token, TokenizeResult> {
+        let mut buf = String::from("[");
+        let mut nesting_level = 0;
+        loop {
+            if let Some(c) = chars.next() {
+                if c == ']' {
+                    nesting_level += 1;
+                } else if c == ']' {
+                    if nesting_level > 0 {
+                        nesting_level -= 1;
+                    }
+                    if nesting_level <= 0 {
+                        buf.push(']');
+                        break
+                    }
+                }
+            } else {
+                return Err(TokenizeResult::UnmatchedSqBrkt)
+            }
+            
+        }
+        return Ok(Token::SqBrkt(buf))
+    }
+
+    fn consume_nmspce(&mut self, chars: &mut CharsIter) -> Result<Token, TokenizeResult> {
+        let mut buf = String::new();
+        loop {
+            if let Some(c) = chars.next() {
+                if c == '}' {
+                    buf.push(c);
+                    break
+                } else {
+                    buf.push(c)
+                }
+            } else {
+                return Err(TokenizeResult::UnmatchedNmspce)
+            }
+        }
+        Ok(Token::NmSpce(buf))
     }
 
     /// Splits command and parses special characters
@@ -589,7 +447,7 @@ impl Lexer {
                     //aliasing only works if the alias value is a valid command
                     //so we don't have to match all cases here
                     if let TokenizeResult::Good(tokens) = 
-                        Lexer::tokenize(&replacement)? {
+                        Lexer::tokenize(&replacement) {
                         tokengrp.extend(tokens);
                         tokengrp.extend(tail);
                     }
@@ -916,9 +774,6 @@ impl Lexer {
                     Token::Background => {
                         execif = Some(Exec::Background);
                     }
-                    _ => {
-                        
-                    }
                 }
                 cmd_idx += 1;
             }
@@ -967,340 +822,6 @@ impl Lexer {
     }
 }
 
-// building a better tokenizer
-// the parser is fine as is rn
-
-pub struct LexerNew<'a> {
-    inner: Peekable<Chars<'a>>,
-}
-
-impl<'a> LexerNew<'a> {
-    pub fn new() -> Self {
-        Self {
-            inner: "".chars().peekable(),
-        }
-    }
-
-    pub fn tokenize(&mut self, cmd: &'a str) -> TokenizeResult {
-        self.inner = cmd.chars().peekable();
-
-        let mut tokens = Vec::<Token>::new();
-        let mut buffer = String::new();
-        let mut prev_char = None;
-
-        while let Some(c) = self.inner.next() {
-            match c {
-                '|' if self.inner.peek() == Some(&'|') => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    tokens.push(Token::Or);
-                    self.inner.next();
-                }
-                '|' if self.inner.peek() == Some(&'&') => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    tokens.push(Token::Pipe2);
-                    self.inner.next();
-                }
-                '|' => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    tokens.push(Token::Pipe);
-                }
-                '&' if self.inner.peek() == Some(&'&') => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    tokens.push(Token::And);
-                    self.inner.next();
-                }
-                '&' if self.inner.peek() == Some(&'>') => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    tokens.push(Token::RDStdOutErr);
-                    self.inner.next();
-                }
-                '&' => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    tokens.push(Token::Background);
-                }
-                '>' if self.inner.peek() == Some(&'>') => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    tokens.push(Token::RDAppend);
-                    self.inner.next();
-                }
-                '>' if self.inner.peek() == Some(&'&') => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    tokens.push(Token::RDFileDesc);
-                    self.inner.next();
-                }
-                '>' => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    tokens.push(Token::Redirect);
-                }
-                '<' => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    tokens.push(Token::RDStdin);
-                }
-                ';' | '\n' => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    tokens.push(Token::Consec);
-                }
-                '"' => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    match self.consume_dquote() {
-                        Ok(tk) => tokens.push(tk),
-                        Err(e) => return e
-                    }
-                }
-                '\'' => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    match self.consume_squote() {
-                        Ok(tk) => tokens.push(tk),
-                        Err(e) => return e
-                    }
-                }
-                '`' => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    match self.consume_bquote() {
-                        Ok(tk) => tokens.push(tk),
-                        Err(e) => return e
-                    }
-                }
-                '[' => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    match self.consume_sqbrkt() {
-                        Ok(tk) => tokens.push(tk),
-                        Err(e) => return e
-                    }
-                }
-                '{' => {
-                    buffer.push(c);
-                    self.consume_brace(&mut buffer);
-                    tokens.push(Token::Brace(buffer.clone()));
-                    buffer.clear();
-                }
-                ' ' => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                }
-                '\\' => {
-                    if let Some(c) = self.inner.next() {
-                        buffer.push(c);
-                    }
-                }
-                n @ '@' | n @ '$' if self.inner.peek() == Some(&'(') => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    match self.consume_cmdsub(n) {
-                        Ok(tk) => tokens.push(tk),
-                        Err(e) => return e
-                    }
-                }
-                '$' if self.inner.peek() == Some(&'{') => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    // consume nmspce
-                }
-
-                // todo: match this for arrays as well
-                '$' => {
-                    tokens.push(Token::Word(buffer.clone()));
-                    buffer.clear();
-                    match self.consume_variable() {
-                        Ok(tk) => tokens.push(tk),
-                        Err(e) => return e
-                    }
-                }
-                _ => { buffer.push(c); }
-            }
-            prev_char = Some(c);
-        }
-        if !buffer.is_empty() {
-            tokens.push(Token::Word(buffer))
-        }
-
-        //filtering empty words
-        let mut tokens: Vec<Token> = tokens.into_iter()
-            .filter(|token| {
-                if let Token::Word(word) = token {
-                    return !word.is_empty()
-                } else if let Token::Brace(word) = token {
-                    return !word.is_empty()
-                }
-                true
-            }).collect();
-        
-        if let Some(token) = tokens.pop() {
-            if token != Token::Consec {
-                tokens.push(token);
-            }
-        }
-
-        match tokens.last() {
-            Some(&Token::Pipe) | Some(&Token::Pipe2) => {
-                return TokenizeResult::EndsOnPipe
-            }
-            Some(&Token::And) => {
-                return TokenizeResult::EndsOnAnd
-            }
-            Some(&Token::Or) => {
-                return TokenizeResult::EndsOnOr
-            }
-            Some(_) => {
-                return TokenizeResult::Good(tokens)
-            }
-            None => {
-                return TokenizeResult::EmptyCommand
-            }
-        }
-    }
-
-    fn consume_dquote(&mut self) -> Result<Token, TokenizeResult> {
-        let mut buf = String::new();
-        loop {
-            if let Some(c) = self.inner.next() {
-                if c == '\\' {
-                    if let Some(c) = self.inner.next() {
-                        buf.push(c);
-                        continue
-                    }
-                } else if c == '"' {
-                    return Ok(Token::DQuote(buf))
-                } else {
-                    buf.push(c);
-                }
-            } else {
-                return Err(TokenizeResult::UnmatchedDQuote(buf));
-            }
-        }
-    }
-
-    fn consume_squote(&mut self) -> Result<Token, TokenizeResult> {
-        let mut buf = String::new();
-        loop {
-            if let Some(c) = self.inner.next() {
-                if c == '\'' {
-                    break
-                } else {
-                    buf.push(c);
-                }
-            } else {
-                return Err(TokenizeResult::UnmatchedSQuote(buf));
-            }
-        }
-        Ok(Token::SQuote(buf))
-    }
-
-    fn consume_bquote(&mut self) -> Result<Token, TokenizeResult> {
-        let mut buf = String::new();
-        loop {
-            if let Some(c) = self.inner.next() {
-                if c == '\\' {
-                    if let Some(c) = self.inner.next() {
-                        buf.push(c);
-                        continue
-                    }
-                } else if c == '`' {
-                    break
-                } else {
-                    buf.push(c);
-                }
-            } else {
-                return Err(TokenizeResult::UnmatchedBQuote);
-            }
-        }
-        Ok(Token::BQuote(buf))
-    }
-
-    fn consume_cmdsub(&mut self, prefix: char) -> Result<Token, TokenizeResult> {
-        let mut buf = format!("{}", prefix);
-        let mut nesting_level = 0;
-        loop {
-            if let Some(c) = self.inner.next() {
-                if c == '@' || c == '$' && self.inner.peek() == Some(&'(') {
-                    nesting_level += 1;
-                } else if c == ')' {
-                    if nesting_level > 0 {
-                        nesting_level -= 1;
-                    }
-                    if nesting_level <= 0 {
-                        buf.push(c);
-                        break
-                    }
-                }
-                buf.push(c);
-            } else {
-                return Err(TokenizeResult::UnmatchedCmdSub)
-            }
-        }
-        Ok(Token::CmdSub(buf))
-    }
-
-    fn consume_variable(&mut self) -> Result<Token, TokenizeResult> {
-        let mut buf = String::from("$");
-        loop {
-            if let Some(c) = self.inner.next() {
-                buf.push(c);
-                if let Some(&c) = self.inner.peek() {
-                    if METACHARS.contains(&c) || !c.is_alphanumeric() {
-                        break
-                    }
-                }
-            }
-        }
-        Ok(Token::Variable(buf))
-    }
-
-    fn consume_brace(&mut self, buf: &mut String) {
-        loop {
-            if let Some(c) = self.inner.next() {
-                buf.push(c);
-                if let Some(&c) = self.inner.peek() {
-                    if METACHARS.contains(&c) {
-                        return
-                    }
-                }
-            } else {
-                return
-            }
-        }
-    }
-
-    fn consume_sqbrkt(&mut self) -> Result<Token, TokenizeResult> {
-        let mut buf = String::from("[");
-        let mut nesting_level = 0;
-        loop {
-            if let Some(c) = self.inner.next() {
-                if c == ']' {
-                    nesting_level += 1;
-                } else if c == ']' {
-                    if nesting_level > 0 {
-                        nesting_level -= 1;
-                    }
-                    if nesting_level <= 0 {
-                        buf.push(']');
-                        break
-                    }
-                }
-            } else {
-                return Err(TokenizeResult::UnmatchedSqBrkt)
-            }
-            
-        }
-        return Ok(Token::SqBrkt(buf))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1309,9 +830,8 @@ mod tests {
     fn test_lexing() {
         let test_string1 = "git add src/{core,shell}.rs && git $commit -m \"hello\" >> hello.txt";
         let test_string2 = "cowsay -f tux -W 80 < $(cat ~/Documents/stallman) | lolcat -p 0.8";
-        let mut lexer = LexerNew::new();
 
-        match lexer.tokenize(test_string1) {
+        match Lexer::tokenize(test_string1) {
             TokenizeResult::Good(tokens) => {
                 let proper = vec![
                     Token::Word(String::from("git")),
@@ -1332,7 +852,7 @@ mod tests {
             }
         }
 
-        match lexer.tokenize(test_string2) {
+        match Lexer::tokenize(test_string2) {
             TokenizeResult::Good(tokens) => {
                 let proper = vec![
                     Token::Word(String::from("cowsay")),

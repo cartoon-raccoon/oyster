@@ -107,65 +107,34 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         loop {
             match Lexer::tokenize(&buffer) {
-                Ok(result) => {
-                    match result {
-                        TokenizeResult::EmptyCommand => {
+                TokenizeResult::EmptyCommand => {
+                    buffer.clear();
+                    last_status = 0;
+                    break;
+                }
+                TokenizeResult::Good(parsedtokens) => {
+                    let jobs = match Lexer::parse_tokens(&mut shell, parsedtokens) {
+                        Ok(result) => result,
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            last_status = 2;
                             buffer.clear();
-                            last_status = 0;
-                            break;
+                            break
                         }
-                        TokenizeResult::Good(parsedtokens) => {
-                            let jobs = match Lexer::parse_tokens(&mut shell, parsedtokens) {
-                                Ok(result) => result,
+                    };
+                    match jobs {
+                        ParseResult::Good(jobs) => {
+                            match execute_jobs(&mut shell, jobs, false) {
+                                Ok(result) => {
+                                    last_status = result.0;
+                                }
                                 Err(e) => {
-                                    eprintln!("{}", e);
-                                    last_status = 2;
-                                    buffer.clear();
-                                    break
-                                }
-                            };
-                            match jobs {
-                                ParseResult::Good(jobs) => {
-                                    match execute_jobs(&mut shell, jobs, false) {
-                                        Ok(result) => {
-                                            last_status = result.0;
-                                        }
-                                        Err(e) => {
-                                            eprintln!("{}", e.to_string());
-                                            last_status = 10;
-                                        }
-                                    }
-                                    buffer.clear();
-                                    break;
-                                }
-                                n@ _ => {
-                                    match lr.set_prompt(&n.to_string()) {
-                                        Ok(_) => {}
-                                        Err(_) => {
-                                            eprintln!("oyster: could not set prompt")
-                                        }
-                                    } 
-                                    match lr.read_line() {
-                                        Ok(ReadResult::Input(line)) => {
-                                            buffer.push_str(&line);
-                                            buffer.push('\n');
-                                        }
-                                        Ok(ReadResult::Eof) => {
-                                            process::exit(100);
-                                        }
-                                        Ok(ReadResult::Signal(signal)) => {
-                                            if let TSignal::Interrupt = signal {
-                                                last_status = 20;
-                                                break;
-                                            }
-                                        }
-                                        Err(_) => {
-                                            last_status = 1;
-                                            break;
-                                        }
-                                    }
+                                    eprintln!("{}", e.to_string());
+                                    last_status = 10;
                                 }
                             }
+                            buffer.clear();
+                            break;
                         }
                         n@ _ => {
                             match lr.set_prompt(&n.to_string()) {
@@ -196,10 +165,32 @@ fn main() -> Result<(), Box<dyn Error>> {
                         }
                     }
                 }
-                Err(e) => {
-                    eprintln!("{}", e);
-                    last_status = 11;
-                    break;
+                n@ _ => {
+                    match lr.set_prompt(&n.to_string()) {
+                        Ok(_) => {}
+                        Err(_) => {
+                            eprintln!("oyster: could not set prompt")
+                        }
+                    } 
+                    match lr.read_line() {
+                        Ok(ReadResult::Input(line)) => {
+                            buffer.push_str(&line);
+                            buffer.push('\n');
+                        }
+                        Ok(ReadResult::Eof) => {
+                            process::exit(100);
+                        }
+                        Ok(ReadResult::Signal(signal)) => {
+                            if let TSignal::Interrupt = signal {
+                                last_status = 20;
+                                break;
+                            }
+                        }
+                        Err(_) => {
+                            last_status = 1;
+                            break;
+                        }
+                    }
                 }
             }
         }
