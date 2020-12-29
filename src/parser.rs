@@ -22,6 +22,8 @@ use crate::expansion::{
     substitute_commands,
 };
 
+const METACHARS: [char; 10] = ['"', '&', '|', '\'', '>', '!', ';', '[', ']', ' '];
+
 pub struct Lexer;
 
 impl Lexer {
@@ -989,67 +991,107 @@ impl<'a> LexerNew<'a> {
         while let Some(c) = self.inner.next() {
             match c {
                 '|' if self.inner.peek() == Some(&'|') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     tokens.push(Token::Or);
                     self.inner.next();
                 }
                 '|' if self.inner.peek() == Some(&'&') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     tokens.push(Token::Pipe2);
                     self.inner.next();
                 }
                 '|' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     tokens.push(Token::Pipe);
                 }
                 '&' if self.inner.peek() == Some(&'&') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     tokens.push(Token::And);
                     self.inner.next();
                 }
                 '&' if self.inner.peek() == Some(&'>') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     tokens.push(Token::RDStdOutErr);
                     self.inner.next();
                 }
                 '&' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     tokens.push(Token::Background);
                 }
                 '>' if self.inner.peek() == Some(&'>') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     tokens.push(Token::RDAppend);
                     self.inner.next();
                 }
                 '>' if self.inner.peek() == Some(&'&') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     tokens.push(Token::RDFileDesc);
                     self.inner.next();
                 }
                 '>' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     tokens.push(Token::Redirect);
                 }
+                '<' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    tokens.push(Token::RDStdin);
+                }
                 ';' | '\n' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     tokens.push(Token::Consec);
                 }
                 '"' => {
-                    match self.consume_bquote() {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
+                    match self.consume_dquote() {
                         Ok(tk) => tokens.push(tk),
                         Err(e) => return e
                     }
                 }
                 '\'' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     match self.consume_squote() {
                         Ok(tk) => tokens.push(tk),
                         Err(e) => return e
                     }
                 }
                 '`' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     match self.consume_bquote() {
                         Ok(tk) => tokens.push(tk),
                         Err(e) => return e
                     }
                 }
                 '[' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     match self.consume_sqbrkt() {
                         Ok(tk) => tokens.push(tk),
                         Err(e) => return e
                     }
                 }
+                '{' => {
+                    buffer.push(c);
+                    self.consume_brace(&mut buffer);
+                    tokens.push(Token::Brace(buffer.clone()));
+                    buffer.clear();
+                }
                 ' ' => {
                     tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                 }
                 '\\' => {
                     if let Some(c) = self.inner.next() {
@@ -1057,17 +1099,23 @@ impl<'a> LexerNew<'a> {
                     }
                 }
                 n @ '@' | n @ '$' if self.inner.peek() == Some(&'(') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     match self.consume_cmdsub(n) {
                         Ok(tk) => tokens.push(tk),
                         Err(e) => return e
                     }
                 }
                 '$' if self.inner.peek() == Some(&'{') => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     // consume nmspce
                 }
 
                 // todo: match this for arrays as well
                 '$' => {
+                    tokens.push(Token::Word(buffer.clone()));
+                    buffer.clear();
                     match self.consume_variable() {
                         Ok(tk) => tokens.push(tk),
                         Err(e) => return e
@@ -1076,6 +1124,9 @@ impl<'a> LexerNew<'a> {
                 _ => { buffer.push(c); }
             }
             prev_char = Some(c);
+        }
+        if !buffer.is_empty() {
+            tokens.push(Token::Word(buffer))
         }
 
         //filtering empty words
@@ -1094,7 +1145,7 @@ impl<'a> LexerNew<'a> {
                 tokens.push(token);
             }
         }
-        
+
         match tokens.last() {
             Some(&Token::Pipe) | Some(&Token::Pipe2) => {
                 return TokenizeResult::EndsOnPipe
@@ -1124,7 +1175,7 @@ impl<'a> LexerNew<'a> {
                         continue
                     }
                 } else if c == '"' {
-                    break
+                    return Ok(Token::DQuote(buf))
                 } else {
                     buf.push(c);
                 }
@@ -1132,7 +1183,6 @@ impl<'a> LexerNew<'a> {
                 return Err(TokenizeResult::UnmatchedDQuote(buf));
             }
         }
-        Ok(Token::DQuote(buf))
     }
 
     fn consume_squote(&mut self) -> Result<Token, TokenizeResult> {
@@ -1173,24 +1223,24 @@ impl<'a> LexerNew<'a> {
     }
 
     fn consume_cmdsub(&mut self, prefix: char) -> Result<Token, TokenizeResult> {
-        let mut buf = format!("{}(", prefix);
+        let mut buf = format!("{}", prefix);
         let mut nesting_level = 0;
         loop {
-            let c = self.inner.next();
-            if let Some(c) = c {
+            if let Some(c) = self.inner.next() {
                 if c == '@' || c == '$' && self.inner.peek() == Some(&'(') {
                     nesting_level += 1;
                 } else if c == ')' {
                     if nesting_level > 0 {
                         nesting_level -= 1;
-                    } 
+                    }
+                    if nesting_level <= 0 {
+                        buf.push(c);
+                        break
+                    }
                 }
                 buf.push(c);
             } else {
                 return Err(TokenizeResult::UnmatchedCmdSub)
-            }
-            if nesting_level <= 0 {
-                break
             }
         }
         Ok(Token::CmdSub(buf))
@@ -1198,19 +1248,39 @@ impl<'a> LexerNew<'a> {
 
     fn consume_variable(&mut self) -> Result<Token, TokenizeResult> {
         let mut buf = String::from("$");
+        loop {
+            if let Some(c) = self.inner.next() {
+                buf.push(c);
+                if let Some(&c) = self.inner.peek() {
+                    if METACHARS.contains(&c) || !c.is_alphanumeric() {
+                        break
+                    }
+                }
+            }
+        }
         Ok(Token::Variable(buf))
     }
 
     fn consume_brace(&mut self, buf: &mut String) {
-
+        loop {
+            if let Some(c) = self.inner.next() {
+                buf.push(c);
+                if let Some(&c) = self.inner.peek() {
+                    if METACHARS.contains(&c) {
+                        return
+                    }
+                }
+            } else {
+                return
+            }
+        }
     }
 
     fn consume_sqbrkt(&mut self) -> Result<Token, TokenizeResult> {
         let mut buf = String::from("[");
         let mut nesting_level = 0;
         loop {
-            let c = self.inner.next();
-            if let Some(c) = c {
+            if let Some(c) = self.inner.next() {
                 if c == ']' {
                     nesting_level += 1;
                 } else if c == ']' {
@@ -1228,5 +1298,60 @@ impl<'a> LexerNew<'a> {
             
         }
         return Ok(Token::SqBrkt(buf))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lexing() {
+        let test_string1 = "git add src/{core,shell}.rs && git $commit -m \"hello\" >> hello.txt";
+        let test_string2 = "cowsay -f tux -W 80 < $(cat ~/Documents/stallman) | lolcat -p 0.8";
+        let mut lexer = LexerNew::new();
+
+        match lexer.tokenize(test_string1) {
+            TokenizeResult::Good(tokens) => {
+                let proper = vec![
+                    Token::Word(String::from("git")),
+                    Token::Word(String::from("add")),
+                    Token::Brace(String::from("src/{core,shell}.rs")),
+                    Token::And,
+                    Token::Word(String::from("git")),
+                    Token::Variable(String::from("$commit")),
+                    Token::Word(String::from("-m")),
+                    Token::DQuote(String::from("hello")),
+                    Token::RDAppend,
+                    Token::Word(String::from("hello.txt")),
+                ];
+                assert_eq!(tokens, proper)
+            }
+            n @ _ => {
+                panic!( "{:?}", n)
+            }
+        }
+
+        match lexer.tokenize(test_string2) {
+            TokenizeResult::Good(tokens) => {
+                let proper = vec![
+                    Token::Word(String::from("cowsay")),
+                    Token::Word(String::from("-f")),
+                    Token::Word(String::from("tux")),
+                    Token::Word(String::from("-W")),
+                    Token::Word(String::from("80")),
+                    Token::RDStdin,
+                    Token::CmdSub(String::from("$(cat ~/Documents/stallman)")),
+                    Token::Pipe,
+                    Token::Word(String::from("lolcat")),
+                    Token::Word(String::from("-p")),
+                    Token::Word(String::from("0.8")),
+                ];
+                assert_eq!(tokens, proper)
+            }
+            err @ _ => {
+                panic!("{:?}", err)
+            }
+        }
     }
 }

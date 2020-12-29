@@ -27,6 +27,7 @@ use crate::prompt::{
 pub const STOPPED: i32 = 127;
 
 /// The state of the tokenizer after parsing the current input
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenizeResult {
     UnmatchedDQuote(String),
     UnmatchedSQuote(String),
