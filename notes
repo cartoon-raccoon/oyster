@@ -19,6 +19,10 @@ kill
 alias *
 let *
 exit *
+show *
+dirstack *
+jobc *
+let *
 
 Features:
 Autocompletion
@@ -34,10 +38,10 @@ shell expansions
 
 Todo:
 Implement history and completion
-Implement process substitution
 Implement git repo detection for prompt
-Implement arrays
-Add parenthesis detection to parser
+Implement hashmaps and iterators over hashmaps
+Change let to accept a list of arguments to save as an array
+Implement namespaces (ion-style)
 For scripting:
     Implement case statement
     Implement logical operators (OR, AND)
@@ -49,8 +53,9 @@ instead of passing execute() a set of params, pass it a Context
 allowing execute() to run for different purposes, i.e. command substitution
 
 Bugs:
-Fix escaping for $
+Fix escaping for * and @
 Fix redirection order
+Fix command substitution in double quotes
 
 My preferred prompt:
 export OYSTER_PROMPT="{YELLOW_B}{USER}{RESET}: {BLUE}{CWD_FULL}{RESET}{NEWLINE}{COLOR_ST}❯{RESET} "
