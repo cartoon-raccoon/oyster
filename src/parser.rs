@@ -130,7 +130,7 @@ impl Lexer {
                         Err(e) => return e
                     }
                 }
-                '[' => {
+                '[' if buffer.is_empty() => {
                     tokens.push(Token::Word(buffer.clone()));
                     buffer.clear();
                     match lexer.consume_sqbrkt(&mut chars) {
@@ -313,6 +313,8 @@ impl Lexer {
                         break
                     }
                 }
+            } else {
+                break
             }
         }
         Ok(Token::Variable(buf))
@@ -334,20 +336,21 @@ impl Lexer {
     }
 
     fn consume_sqbrkt(&mut self, chars: &mut CharsIter) -> Result<Token, TokenizeResult> {
-        let mut buf = String::from("[");
+        let mut buf = String::new();
         let mut nesting_level = 0;
         loop {
             if let Some(c) = chars.next() {
-                if c == ']' {
+                if c == '[' {
                     nesting_level += 1;
                 } else if c == ']' {
                     if nesting_level > 0 {
                         nesting_level -= 1;
                     }
                     if nesting_level <= 0 {
-                        buf.push(']');
                         break
                     }
+                } else {
+                    buf.push(c)
                 }
             } else {
                 return Err(TokenizeResult::UnmatchedSqBrkt)
@@ -830,6 +833,7 @@ mod tests {
     fn test_lexing() {
         let test_string1 = "git add src/{core,shell}.rs && git $commit -m \"hello\" >> hello.txt";
         let test_string2 = "cowsay -f tux -W 80 < $(cat ~/Documents/stallman) | lolcat -p 0.8";
+        let test_string3 = "echo $hello";
 
         match Lexer::tokenize(test_string1) {
             TokenizeResult::Good(tokens) => {
@@ -871,6 +875,20 @@ mod tests {
             }
             err @ _ => {
                 panic!("{:?}", err)
+            }
+        }
+
+        match Lexer::tokenize(test_string3) {
+            TokenizeResult::Good(tokens) => {
+                let proper = vec![
+                    Token::Word(String::from("echo")),
+                    Token::Variable(String::from("$hello")),
+                ];
+
+                assert_eq!(tokens, proper)
+            }
+            n @ _ => {
+                panic!("{:?}", n)
             }
         }
     }

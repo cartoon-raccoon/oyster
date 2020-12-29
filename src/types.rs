@@ -508,7 +508,6 @@ impl Cmd {
         let mut newargs: Vec<String> = Vec::new();
         match cmd.cmd.0 {
             Quote::NQuote => {
-                expand_variables(shell, &mut cmd.cmd.1);
                 expand_tilde(shell, &mut cmd.cmd.1);
                 if cmd.cmd.1.starts_with("@") {
                     if cmd.cmd.1.contains("[") && cmd.cmd.1.ends_with("]") {
@@ -607,7 +606,6 @@ impl Cmd {
         for (quote, mut string) in cmd.args[1..].to_vec() {
             match quote {
                 Quote::NQuote => {
-                    expand_variables(shell, &mut string);
                     expand_tilde(shell, &mut string);
                     if string.starts_with("@") {
                         if string.contains("[") && string.ends_with("]") {
@@ -628,9 +626,10 @@ impl Cmd {
                     }
                 }
                 Quote::Variable => {
-                    if let Some(var) = shell.get_variable(&cmd.cmd.1[1..]) {
+                    if let Some(var) = shell.get_variable(&string[1..]) {
                         newargs.push(var.to_string());
                     }
+                    continue
                 }
                 Quote::DQuote => {
                     expand_variables(shell, &mut string);
@@ -663,7 +662,6 @@ impl Cmd {
                     }
                 }
                 Quote::BQuote => {
-                    expand_variables(shell, &mut string);
                     match substitute_commands(shell, &string) {
                         Ok(string) => {
                             let strings: Vec<String> = string.
