@@ -75,7 +75,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let lr = Interface::new("oyster")?;
     lr.set_completer(Arc::new(OshComplete{}));
     
-    loop {
+    // main: main loop (get command, execute, repeat)
+    'main: loop {
         jobc::try_wait_bg_jobs(&mut shell);
         let prompt = prompt::render_prompt(last_status);
         match lr.set_prompt(&prompt) {
@@ -97,20 +98,21 @@ fn main() -> Result<(), Box<dyn Error>> {
             Ok(ReadResult::Signal(signal)) => {
                 if let TSignal::Interrupt = signal {
                     last_status = 20;
-                    continue;
+                    continue 'main;
                 }
             }
             Err(_) => {
                 last_status = 1;
-                continue;
+                continue 'main;
             }
         }
-        loop {
+        // complete: waits for a complete shell input before breaking
+        'complete: loop {
             match Lexer::tokenize(&buffer) {
                 TokenizeResult::EmptyCommand => {
                     buffer.clear();
                     last_status = 0;
-                    break;
+                    break 'complete
                 }
                 TokenizeResult::Good(parsedtokens) => {
                     let jobs = match Lexer::parse_tokens(&mut shell, parsedtokens) {
@@ -119,7 +121,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             eprintln!("{}", e);
                             last_status = 2;
                             buffer.clear();
-                            break
+                            break 'complete
                         }
                     };
                     match jobs {
@@ -134,7 +136,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 }
                             }
                             buffer.clear();
-                            break;
+                            break 'complete
                         }
                         n@ _ => {
                             match lr.set_prompt(&n.to_string()) {
@@ -154,12 +156,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 Ok(ReadResult::Signal(signal)) => {
                                     if let TSignal::Interrupt = signal {
                                         last_status = 20;
-                                        break;
+                                        break 'complete
                                     }
                                 }
                                 Err(_) => {
                                     last_status = 1;
-                                    break;
+                                    break 'complete
                                 }
                             }
                         }
@@ -178,17 +180,17 @@ fn main() -> Result<(), Box<dyn Error>> {
                             buffer.push('\n');
                         }
                         Ok(ReadResult::Eof) => {
-                            process::exit(100);
+                            process::exit(100)
                         }
                         Ok(ReadResult::Signal(signal)) => {
                             if let TSignal::Interrupt = signal {
                                 last_status = 20;
-                                break;
+                                break 'complete
                             }
                         }
                         Err(_) => {
                             last_status = 1;
-                            break;
+                            break 'complete
                         }
                     }
                 }
