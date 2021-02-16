@@ -1,7 +1,7 @@
-use crate::shell::search_in_path;
 use crate::types::Cmd;
+use crate::shell::Shell;
 
-pub fn run(mut cmd: Cmd) -> i32 {
+pub fn run(shell: &mut Shell, mut cmd: Cmd) -> i32 {
     cmd.args.remove(0);
     let mut failed: i32 = 0;
     for arg in cmd.args {
@@ -34,7 +34,7 @@ pub fn run(mut cmd: Cmd) -> i32 {
                 println!("{}: shell reserved word", n);
             }
             _ => {
-                match search_in_path(&arg) {
+                match shell.search_in_path(&arg) {
                     Ok(path) => {
                         if let Some(pathname) = path.to_str() {
                             println!("{}", pathname);

@@ -26,7 +26,7 @@ use nix::errno::Errno;
 
 use crate::types::*;
 use crate::jobc;
-use crate::shell::{self, Shell, search_in_path};
+use crate::shell::{self, Shell};
 use crate::builtins::*;
 
 /// Even lower level, it deconstructs the job
@@ -267,7 +267,7 @@ fn run_command(
                     process::exit(status);
                 }
                 "which" => {
-                    let status = which::run(cmd);
+                    let status = which::run(shell, cmd);
                     process::exit(status);
                 }
                 "show" => {
@@ -307,7 +307,7 @@ fn run_command(
 
             let c_cmd = if !cmd.cmd.contains("/") {
                 CString::new(
-                search_in_path(&cmd.cmd)
+                shell.search_in_path(&cmd.cmd)
                 .unwrap_or_exit(&format!("oyster: command {} not found", cmd.cmd), 1)
                 .to_str().unwrap_or_exit("oyster: osstring conversion error", 5))
                 .unwrap_or_exit("oyster: cstring error converting command", 5)

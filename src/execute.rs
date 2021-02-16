@@ -203,7 +203,7 @@ pub fn execute(
                 return Ok(CommandResult::from_status(status));
             }
             "which" => {
-                let status = which::run(cmd);
+                let status = which::run(shell, cmd);
                 return Ok(CommandResult::from_status(status));
             }
             "show" => {

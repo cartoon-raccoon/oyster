@@ -1,5 +1,5 @@
 use std::collections::{HashMap, BTreeMap};
-use std::path::PathBuf;
+use std::path::{PathBuf};
 use std::fs::{OpenOptions, File};
 use std::os::unix::io::IntoRawFd;
 use std::env;
@@ -37,6 +37,7 @@ pub struct Shell {
     pub jobs: BTreeMap<i32, JobTrack>,
     aliases: HashMap<String, String>,
     pub env: HashMap<String, String>,
+    pub cmds: HashMap<String, PathBuf>,
     vars: HashMap<String, Var>,
     maps: HashMap<String, Map>,
     pub funcs: HashMap<String, Function>,
@@ -57,6 +58,7 @@ impl Shell {
             jobs: BTreeMap::new(),
             aliases: HashMap::new(),
             env: HashMap::new(),
+            cmds: HashMap::new(),
             vars: HashMap::new(),
             maps: HashMap::new(),
             funcs: HashMap::new(),
@@ -201,6 +203,52 @@ impl Shell {
             return Err(ShellError::from(msg))
         }
     }
+    /// Adds a command to the command storage.
+    pub fn add_cmd<P: Into<PathBuf>>(&mut self, cmd: &str, path: P) {
+        self.cmds.insert(cmd.into(), path.into());
+    }
+    /// Retrieves a command from command storage.
+    pub fn contains_cmd(&self, cmd: &str) -> Option<&PathBuf> {
+        self.cmds.get(cmd.into())
+    }
+    /// Searches PATH for the required program file.
+    pub fn search_in_path(&mut self, command: &str) -> Result<PathBuf, ShellError> {
+        if let Some(path) = self.contains_cmd(command) {
+            println!("Got path {:?} from internal hashmap", path);
+            return Ok(path.into())
+        }
+        //collecting all entries in $PATH
+        let paths: Vec<PathBuf> = env::var("PATH")
+            .unwrap_or(String::new())
+            .split(":")
+            .map(|n| PathBuf::from(n))
+            .collect();
+        if paths.is_empty() {
+            return Err(ShellError::from("oyster: path is empty"))
+        }
+        for path in paths {
+            //iterating over all the entries in the path
+            for item in std::fs::read_dir(path)? {
+                let item = item?;
+                //getting the file name of the entry path
+                if let Some(entry) = item.path().file_name() {
+                    let entry = entry.to_str()
+                        .ok_or(ShellError::from("oyster: error converting filepaths"))?;
+                    if entry == command {
+                        self.add_cmd(command, entry);
+                        return Ok(item.path())
+                    } else {
+                        continue
+                    }
+                } else {
+                    return Err(ShellError::from(
+                        format!("oyster: error")
+                    ))
+                }
+            }
+        }
+        Err(ShellError::from(format!("oyster: command `{}` not found", command)))
+    }
     /// Called by the alias builtin.
     /// Adds an alias to the shell.
     pub fn add_alias(&mut self, key: &str, value: &str) {
@@ -303,39 +351,6 @@ pub fn open_file_as_fd(dest: &str) -> i32 {
     File::open(dest)
     .unwrap_or_exit("oyster: could not open file", 3)
     .into_raw_fd()
-}
-
-pub fn search_in_path(command: &str) -> Result<PathBuf, ShellError> {
-    //collecting all entries in $PATH
-    let paths: Vec<PathBuf> = env::var("PATH")
-        .unwrap_or(String::new())
-        .split(":")
-        .map(|n| PathBuf::from(n))
-        .collect();
-    if paths.is_empty() {
-        return Err(ShellError::from("oyster: path is empty"))
-    }
-    for path in paths {
-        //iterating over all the entries in the path
-        for item in std::fs::read_dir(path)? {
-            let item = item?;
-            //getting the file name of the entry path
-            if let Some(entry) = item.path().file_name() {
-                let entry = entry.to_str()
-                    .ok_or(ShellError::from("oyster: error converting filepaths"))?;
-                if entry == command {
-                    return Ok(item.path())
-                } else {
-                    continue
-                }
-            } else {
-                return Err(ShellError::from(
-                    format!("oyster: error")
-                ))
-            }
-        }
-    }
-    Err(ShellError::from(format!("oyster: command `{}` not found", command)))
 }
 
 //steps:
@@ -599,16 +614,18 @@ mod tests {
     }
     #[test]
     fn check_path_searching() {
+        let mut shell = Shell::new();
         let command = OsString::from("cogsy");
         assert_eq!(
             OsString::from("/home/sammy/.cargo/bin/cogsy"), 
-            search_in_path(command.to_str()
+            shell.search_in_path(command.to_str()
             .unwrap()).unwrap()
         );
+        let mut shell = Shell::new();
         let command = OsString::from("pacman");
         assert_eq!(
             OsString::from("/usr/bin/pacman"),
-            search_in_path(command.to_str()
+            shell.search_in_path(command.to_str()
             .unwrap()).unwrap()
         )
     }
