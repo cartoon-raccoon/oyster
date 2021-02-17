@@ -60,7 +60,7 @@ pub fn run_pipeline(
             isatty: isatty,
             background: background,
             capture_output: capture, //is used in command expansion only
-            env: shell.env.clone(),
+            env: shell.env().clone(),
         };
 
         let childpid = run_command(

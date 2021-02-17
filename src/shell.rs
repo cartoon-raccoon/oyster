@@ -34,22 +34,23 @@ use crate::scripting::execute_scriptfile;
 
 #[derive(Clone, Debug)]
 pub struct Shell {
-    pub jobs: BTreeMap<i32, JobTrack>,
+    pub(crate) jobs: BTreeMap<i32, JobTrack>,
     aliases: HashMap<String, String>,
-    pub env: HashMap<String, String>,
-    pub cmds: HashMap<String, PathBuf>,
+    env: HashMap<String, String>,
+    cmds: HashMap<String, PathBuf>,
     vars: HashMap<String, Var>,
     maps: HashMap<String, Map>,
-    pub funcs: HashMap<String, Function>,
+    funcs: HashMap<String, Function>,
     max_nesting: usize,
     stack_size: usize,
-    pub dirstack: Vec<PathBuf>,
+    pub(crate) dirstack: Vec<PathBuf>,
     pub current_dir: PathBuf,
     pub prev_dir: PathBuf,
     pgid: i32,
     pub is_login: bool,
 }
 
+#[allow(dead_code)]
 impl Shell {
     pub fn new() -> Self {
         let home = env::var("HOME").unwrap_or(String::new());
@@ -159,6 +160,15 @@ impl Shell {
             }
         }
     }
+    /// Get a view into the shell internal storage of functions.
+    pub fn funcs(&self) -> &HashMap<String, Function> {
+        &self.funcs
+    }
+    /// Get a mutable view to the shell internal stroage of functions.
+    pub fn funcs_mut(&mut self) -> &mut HashMap<String, Function> {
+        &mut self.funcs
+    }
+    /// Add a function to the shell internal storage.
     pub fn insert_func(&mut self, name: &str, jobs: Vec<Job>, params: Option<usize>) {
         let func = Function {
             name: name.to_string(),
@@ -202,6 +212,21 @@ impl Shell {
             let msg = format!("oyster: no function `{}` found", name);
             return Err(ShellError::from(msg))
         }
+    }
+    /// Gives a reference to the shell environment.
+    pub fn env(&self) -> &HashMap<String, String> {
+        &self.env
+    }
+    /// Gives a mutable reference to the shell environment.
+    pub fn env_mut(&mut self) -> &mut HashMap<String, String> {
+        &mut self.env
+    }
+    /// Add a variable to the shell environment.
+    pub fn add_env_var(&mut self, key: &str, val: &str) {
+        self.env.insert(key.into(), val.into());
+    }
+    pub fn get_env_var(&self, key: &str) -> Option<&str> {
+        self.env.get(key.into()).map(|s| s.as_str())
     }
     /// Adds a command to the command storage.
     pub fn add_cmd<P: Into<PathBuf>>(&mut self, cmd: &str, path: P) {

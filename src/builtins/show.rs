@@ -16,7 +16,7 @@ pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
         let to_find: &str = &cmd.args[2];
         match cmd.args[1].as_str() {
             "-f" => {
-                if let Some(func) = shell.funcs.get(to_find) {
+                if let Some(func) = shell.funcs().get(to_find) {
                     func.print();
                 } else {
                     eprintln!("show: could not find function {} in shell", to_find);
@@ -47,7 +47,7 @@ pub fn run(shell: &mut Shell, cmd: Cmd) -> i32 {
             eprintln!("show: incorrect number of arguments");
             return 1;
         }
-        if let Some(func) = shell.funcs.get(&cmd.args[1]) {
+        if let Some(func) = shell.funcs().get(&cmd.args[1]) {
             func.print();
         } else if let Some(var) = shell.get_variable(&cmd.args[1]) {
             var.print();
